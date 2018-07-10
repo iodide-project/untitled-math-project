@@ -5,36 +5,70 @@
 extern crate ndarray;
 extern crate wasm_bindgen;
 
-use wasm_bindgen::js;
 use wasm_bindgen::prelude::*;
+use wasm_bindgen::js;
 use ndarray::prelude::*;
-use ndarray::{Array, Array1, ArrayBase, arr1, arr2};
+use ndarray::{Array, Array1, Array2, ArrayBase, ShapeBuilder, arr1, arr2};
 use ndarray::{Dim, Ix};
 
+#[repr(C)]
+pub enum Ds {
+    D1(Array<f32, Dim<[Ix; 1]>>),
+    D2(Array<f32, Dim<[Ix; 2]>>),
+}
+
+// need to be able to say the return type of  some of these functions is a certain dimension type
+// ?? should I use an enum for thedim type?
 #[wasm_bindgen]
-pub struct NdRange {
+pub struct Nd {
+    array: Ds,
+}
+//todo change the ndarr to nd style
+#[wasm_bindgen]
+impl Nd {
+    //pub fn make(arr_arg: &js::Array) -> Nd {
+    pub fn make(arr_arg: &js::Array) -> String {
+        // simple test
+        let str_arr = String::from(arr_arg.to_string()); //both coversions required due to the JsString used first
+        let vec_string: Vec<_> = str_arr.split(",").collect();
+        let test = Array2::<f32>::zeros((
+            vec_string[1].parse().unwrap(),
+            vec_string[2].parse().unwrap(),
+        ));
+        format!("2d {:?}", test)
+        //match vec_string.len() {
+        //    2 => Nd {
+        //        array: Ds::D1(Array1::zeros(vec_string[1].parse::<usize>().unwrap())),
+        //    },
+        //    _ => Nd {
+        //        array: Ds::D2(Array2::zeros((
+        //            vec_string[1].parse::<usize>().unwrap(),
+        //            vec_string[2].parse::<usize>().unwrap(),
+        //        ))),
+        //    },
+        //}
+    }
+    pub fn show(&self) -> String {
+        match self.array {
+            Ds::D1(ref arr) => format!("d1{:.10?}", arr), // the zero is because of the enum part
+            Ds::D2(ref arr) => format!("d2{:.10?}", arr), // the zero is because of the enum part
+        }
+    }
+}
+
+#[wasm_bindgen]
+pub struct NdArr {
     array: Array<f32, Dim<[Ix; 1]>>,
 }
 
-enum MultDim {
-    One,
-    Two,
-}
-
-trait FlexDim {
-    fn make_correct_array() -> 
-}
-
 #[wasm_bindgen]
-impl NdRange {
-    pub fn general_make<T:FlexDim>(
+impl NdArr {
     // ?? not sure what type this first dim should be
     // ?? how should it look when we are passing a js array?
-    pub fn make(arr_arg: & js::Array) -> NdRange {
-        match arr_arg.length() {
-        // functions responsible for returning different length ndarrays
-        }
-               }
+    pub fn make(arr_arg: &js::Array) -> String {
+        // ?? transformations of arr_arg?
+        String::from(arr_arg.to_string())
+    }
     pub fn show(&self) -> String {
         format!("{:.10?}", self.array)
     }
@@ -44,7 +78,7 @@ impl NdRange {
 }
 //?? need to come up with a way to wrap the actual objects rather than having to communicate
 //??through strings wasm_bindgen doesn't have a trait bound satisfied when trying to capture
-//??function return 
+//??function return
 // ?? function that accepts ptr from javascript ??
 #[wasm_bindgen]
 pub fn get_array_rep() -> String {
@@ -58,8 +92,8 @@ pub fn get_array_rep() -> String {
 //library functions
 
 #[wasm_bindgen]
-pub fn make_array() -> NdRange {
-    NdRange {
+pub fn make_array() -> NdArr {
+    NdArr {
         array: Array::range(0., 12., 1.),
     }
 }
