@@ -26,32 +26,35 @@ pub struct Nd {
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
-    //pub fn make(arr_arg: &js::Array) -> Nd {
-    pub fn make(arr_arg: &js::Array) -> String {
+    pub fn make(arr_arg: &js::Array) -> Nd {
         // simple test
         let str_arr = String::from(arr_arg.to_string()); //both coversions required due to the JsString used first
         let vec_string: Vec<_> = str_arr.split(",").collect();
-        let test = Array2::<f32>::zeros((
-            vec_string[1].parse().unwrap(),
-            vec_string[2].parse().unwrap(),
-        ));
-        format!("2d {:?}", test)
-        //match vec_string.len() {
-        //    2 => Nd {
-        //        array: Ds::D1(Array1::zeros(vec_string[1].parse::<usize>().unwrap())),
-        //    },
-        //    _ => Nd {
-        //        array: Ds::D2(Array2::zeros((
-        //            vec_string[1].parse::<usize>().unwrap(),
-        //            vec_string[2].parse::<usize>().unwrap(),
-        //        ))),
-        //    },
-        //}
+        match vec_string.len() {
+            2 => {
+                let mut temp_arr = Array1::zeros(vec_string[1].parse::<usize>().unwrap());
+                temp_arr.fill(vec_string[0].parse::<f32>().unwrap());
+                Nd {
+                    array: Ds::D1(temp_arr),
+                }
+            }
+            // ?? what is a good way to setup the nth case here??
+            _ => {
+                let mut temp_arr = Array2::zeros((
+                    vec_string[1].parse::<usize>().unwrap(),
+                    vec_string[2].parse::<usize>().unwrap(),
+                ));
+                temp_arr.fill(vec_string[0].parse::<f32>().unwrap());
+                Nd {
+                    array: Ds::D2(temp_arr),
+                }
+            }
+        }
     }
     pub fn show(&self) -> String {
         match self.array {
-            Ds::D1(ref arr) => format!("d1{:.10?}", arr), // the zero is because of the enum part
-            Ds::D2(ref arr) => format!("d2{:.10?}", arr), // the zero is because of the enum part
+            Ds::D1(ref arr) => format!("d1{:.3?}", arr), // the zero is because of the enum part
+            Ds::D2(ref arr) => format!("d2{:.3?}", arr), // the zero is because of the enum part
         }
     }
 }
