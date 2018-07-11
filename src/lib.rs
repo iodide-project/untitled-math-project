@@ -9,11 +9,12 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::js;
 use ndarray::prelude::*;
 use ndarray::Array;
-use ndarray::{ArrayD, Dim, Ix, IxDyn};
+use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
 
 // need to be able to say the return type of  some of these functions is a certain dimension type
 // ?? should I use an enum for thedim type?
 #[wasm_bindgen]
+#[derive(Clone)]
 pub struct Nd {
     array: ArrayD<f32>,
 }
@@ -24,17 +25,48 @@ impl Nd {
     pub fn make(arr_arg: &js::Array) -> Nd {
         // simple test
         let str_arr = String::from(arr_arg.to_string()); //both coversions required due to the JsString used first
-        let vec_dim: Vec<usize> = str_arr
-            .split(",")
+        let mut vec_str: Vec<_> = str_arr.split(",").collect();
+        let filler = vec_str.remove(0).parse::<f32>().unwrap();
+        let vec_dim: Vec<usize> = vec_str
+            .into_iter()
             .map(|x| x.parse::<usize>().unwrap())
             .collect();
-        let mut temp_arr = ArrayD::<f32>::zeros(IxDyn(&vec_dim[1..]));
+        let mut temp_arr = ArrayD::<f32>::zeros(IxDyn(&vec_dim));
         // todo explore whether the from_elem alt is faster than zero/fill method
-        temp_arr.fill(vec_dim[0] as f32);
+        temp_arr.fill(filler);
         Nd { array: temp_arr }
     }
-    pub fn add_to(&mut self, other: Nd) {
-
+    // ?? ask nick if cloning is the only way to make this happen...
+    // ?? how does testing work in this case?
+    pub fn add(&self, other: &Nd) -> Nd {
+        let _temp_self = self.array.clone();
+        let _temp_other = other.array.clone();
+        Nd {
+            array: _temp_self + _temp_other,
+        }
+    }
+    pub fn dot(&self, other: &Nd) -> Nd {
+        let _temp_self = self.array.clone();
+        let _temp_other = other.array.clone();
+        let _temp_self_dottable = _temp_self.into_dimensionality::<Ix2>().unwrap();
+        let _temp_other_dottable = _temp_other.into_dimensionality::<Ix2>().unwrap();
+        Nd {
+            array: _temp_self_dottable.dot(&_temp_other_dottable).into_dyn(),
+        }
+    }
+    pub fn op(&self, operator: &str, other: &Nd) -> Nd {
+        let _temp_self = self.array.clone();
+        let _temp_other = other.array.clone();
+        // broadcast default to other broadcasting
+        let _broad_temp_other = _temp_other.broadcast(_temp_self.dim()).unwrap();
+        Nd {
+            array: match operator.trim() {
+                "+" => _temp_self + _broad_temp_other,
+                "-" => _temp_self - _broad_temp_other,
+                "*" => _temp_self * _broad_temp_other,
+                _ => panic!(),
+            },
+        }
     }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)

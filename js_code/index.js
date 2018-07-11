@@ -12,7 +12,7 @@ ndarray.then(module => {
     let ar3 = new module.Nd([0,6,3])
     console.log(ar3.show())
     console.log(new module.Nd([0,6]).show())
-    let timer = (arr) => {
+    let creationTimer = (arr) => {
         console.log(`timing input: ${arr}`)
         let t1 = performance.now()
         new module.Nd(arr)
@@ -26,8 +26,18 @@ ndarray.then(module => {
         [0,4,512,512],
     ]
     for (test_arr of test_arrays) {
-        timer(test_arr)
+        creationTimer(test_arr)
     }
+    let a1 =new module.Nd( [Math.random(),5,5])
+    let a2 =new module.Nd( [Math.random(),5,5])
+    console.log(`adding \n ${a1.show()} \nplus  ${a2.show()} \n= ${a1.add(a2).show() }`)
+    console.log(`subtracting \n ${a1.show()} \nminus  ${a2.show()} \n= ${a1.op("-",a2).show() }`)
+    console.log(`multiplying \n ${a1.show()} \ndot prod(mtxmult)  ${a2.show()} \n= ${a1.op("*",a2).show() }`)
+    let a3 = new module.Nd([Math.random(),2,3])
+    let a4 = new module.Nd([5,1,3])
+    console.log(`broadcast result of adding \n${a4.show()} to \n${a3.show()} is \n${a3.op("+",a4).show()}`)
+    console.log(`broadcast result of subtracting \n${a4.show()} from \n${a3.show()} is \n${a3.op("-",a4).show()}`)
+    console.log(`broadcast result of elementwise_multiplying \n${a3.show()} and \n${a4.show()} is \n${a3.op("*",a4).show()}`)
 }
 )
 
