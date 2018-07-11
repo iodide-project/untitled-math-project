@@ -2,7 +2,7 @@
 extern crate ndarray;
 extern crate wasm_bindgen;
 use ndarray::prelude::*;
-use ndarray::{Array, arr2};
+use ndarray::{Array, ArrayD, Dim, Ix, IxDyn, arr2};
 
 // many similarities
 // differences are
@@ -32,17 +32,29 @@ fn test_operations() {
     let range_vec: Vec<_> = (0..21).collect();
     println!("{:?}", range_vec);
     //let second = Array::from_shape_vec((2, 10), range_vec)?;
-    println!("{}", second);
+    //println!("{}", second);
     //println!(
     //    " matrix multiplication looks like \n {}",
     //    first.dot(&second)
     //);
 }
 
+#[repr(C)]
+pub enum Ds {
+    D1(Array<f32, Dim<[Ix; 1]>>),
+    D2(Array<f32, Dim<[Ix; 2]>>),
+    D3(Array<f32, Dim<[Ix; 3]>>),
+    D4(Array<f32, Dim<[Ix; 4]>>),
+    D5(Array<f32, Dim<[Ix; 5]>>),
+    D6(Array<f32, Dim<[Ix; 6]>>),
+}
 fn main() {
     // testing out the ndarray for python users
     println!("examining the support for array creation");
     test_creating();
     test_operations();
     println!("Hello, world!");
+    let vec = vec![5, 3, 3];
+    let arr = ArrayD::<f32>::zeros(IxDyn(&vec));
+    println!("{:?}", arr);
 }

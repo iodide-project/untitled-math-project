@@ -8,54 +8,36 @@ extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::js;
 use ndarray::prelude::*;
-use ndarray::{Array, Array1, Array2, ArrayBase, ShapeBuilder, arr1, arr2};
-use ndarray::{Dim, Ix};
-
-#[repr(C)]
-pub enum Ds {
-    D1(Array<f32, Dim<[Ix; 1]>>),
-    D2(Array<f32, Dim<[Ix; 2]>>),
-}
+use ndarray::Array;
+use ndarray::{ArrayD, Dim, Ix, IxDyn};
 
 // need to be able to say the return type of  some of these functions is a certain dimension type
 // ?? should I use an enum for thedim type?
 #[wasm_bindgen]
 pub struct Nd {
-    array: Ds,
+    array: ArrayD<f32>,
 }
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
+    #[wasm_bindgen(constructor)]
     pub fn make(arr_arg: &js::Array) -> Nd {
         // simple test
         let str_arr = String::from(arr_arg.to_string()); //both coversions required due to the JsString used first
-        let vec_string: Vec<_> = str_arr.split(",").collect();
-        match vec_string.len() {
-            2 => {
-                let mut temp_arr = Array1::zeros(vec_string[1].parse::<usize>().unwrap());
-                temp_arr.fill(vec_string[0].parse::<f32>().unwrap());
-                Nd {
-                    array: Ds::D1(temp_arr),
-                }
-            }
-            // ?? what is a good way to setup the nth case here??
-            _ => {
-                let mut temp_arr = Array2::zeros((
-                    vec_string[1].parse::<usize>().unwrap(),
-                    vec_string[2].parse::<usize>().unwrap(),
-                ));
-                temp_arr.fill(vec_string[0].parse::<f32>().unwrap());
-                Nd {
-                    array: Ds::D2(temp_arr),
-                }
-            }
-        }
+        let vec_dim: Vec<usize> = str_arr
+            .split(",")
+            .map(|x| x.parse::<usize>().unwrap())
+            .collect();
+        let mut temp_arr = ArrayD::<f32>::zeros(IxDyn(&vec_dim[1..]));
+        // todo explore whether the from_elem alt is faster than zero/fill method
+        temp_arr.fill(vec_dim[0] as f32);
+        Nd { array: temp_arr }
+    }
+    pub fn add_to(&mut self, other: Nd) {
+
     }
     pub fn show(&self) -> String {
-        match self.array {
-            Ds::D1(ref arr) => format!("d1{:.3?}", arr), // the zero is because of the enum part
-            Ds::D2(ref arr) => format!("d2{:.3?}", arr), // the zero is because of the enum part
-        }
+        format!("{:?}", self.array)
     }
 }
 
