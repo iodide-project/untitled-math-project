@@ -21,8 +21,8 @@ So far this project represents attempts to create a wasm-module which wraps the 
 
 From the root of the project directory run
 
-`
+```
 cargo +nightly build --lib --target wasm32-unknown-unknown
 wasm-bindgen target/wasm32-unknown-unknown/debug/rust_sci_test.wasm \
   --out-dir js_code/
-`
+```
