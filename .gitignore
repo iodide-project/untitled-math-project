@@ -1,0 +1,6 @@
+/js_code/node_modules
+**/*.wasm
+/target
+**/*.rs.bk
+*pdf
+*xoj
