@@ -140,6 +140,8 @@ name = "wasm-bindgen"
 version = "0.2.11"
 source = "git+https://github.com/rustwasm/wasm-bindgen#bc2eab14349633a21e100d8c67136333899de921"
 dependencies = [
+ "serde 1.0.66 (registry+https://github.com/rust-lang/crates.io-index)",
+ "serde_json 1.0.21 (registry+https://github.com/rust-lang/crates.io-index)",
  "wasm-bindgen-macro 0.2.11 (git+https://github.com/rustwasm/wasm-bindgen)",
 ]
 

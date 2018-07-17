@@ -1,4 +1,4 @@
-#![feature(proc_macro, wasm_custom_section, wasm_import_module)]
+#![feature(proc_macro, wasm_custom_section, wasm_import_module, wasm_serde_serialize)]
 #[macro_use(array)]
 // !! one issue is I'm running into difficulty in describing the types that will come out after the
 // !! fact
