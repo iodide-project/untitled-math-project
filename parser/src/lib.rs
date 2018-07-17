@@ -1,5 +1,7 @@
 fn make_number(num: &str, total: &mut Vec<f32>) {
+    if num != "" {
     total.push(num.trim().parse::<f32>().unwrap());
+    }
 }
 
 // idea,
@@ -58,11 +60,11 @@ mod tests {
             (vec![3_usize], vec![1_f32, 2_f32, 3_f32])
         );
         //all the rest of these will break until i change the u32s to usize
-        //assert_eq!(parse("[[1,2,3],[4,5,6]]"), vec![2_u32, 3_u32]);
-        //assert_eq!(parse("[[1,2,3],[4,5,6],[7,8,9]]"), vec![3_u32, 3_u32]);
+        assert_eq!(parse("[[1,2,3],[4,5,6]]"), (vec![2_usize, 3_usize],vec![1_f32,2_f32,3_f32,4_f32,5_f32,6_f32]));
+        //assert_eq!(parse("[[1,2,3],[4,5,6],[7,8,9]]"), vec![3_usize, 3_usize]);
         //assert_eq!(
         //    parse("[[ [1,2,3],[4,5,6],[7,8,9]],[[1,2,3],[4,5,6],[7,8,9]]]"),
-        //    vec![2_u32, 3_u32, 3_u32]
+        //    vec![2_usize, 3_usize, 3_usize]
         //);
     }
     #[test]

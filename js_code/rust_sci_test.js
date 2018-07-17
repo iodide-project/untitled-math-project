@@ -2,13 +2,6 @@
 /* tslint:disable */
 import * as wasm from './rust_sci_test_bg';
 
-let stack = [];
-
-function addBorrowedObject(obj) {
-    stack.push(obj);
-    return ((stack.length - 1) << 1) | 1;
-}
-
 const TextEncoder = typeof self === 'object' && self.TextEncoder
     ? self.TextEncoder
     : require('util').TextEncoder;
@@ -29,6 +22,13 @@ function passStringToWasm(arg) {
     const ptr = wasm.__wbindgen_malloc(buf.length);
     getUint8Memory().set(buf, ptr);
     return [ptr, buf.length];
+}
+
+let stack = [];
+
+function addBorrowedObject(obj) {
+    stack.push(obj);
+    return ((stack.length - 1) << 1) | 1;
 }
 
 const TextDecoder = typeof self === 'object' && self.TextDecoder
@@ -1261,68 +1261,6 @@ const __wbg_f_valueOf_value_of_String_target = String.prototype.valueOf;
 export function __wbg_f_valueOf_value_of_String(arg0) {
     return addHeapObject(__wbg_f_valueOf_value_of_String_target.call(getObject(arg0)));
 }
-/**
-*/
-export class NdArr {
-    
-    static __construct(ptr) {
-        return new NdArr(ptr);
-    }
-    
-    constructor(ptr) {
-        this.ptr = ptr;
-    }
-    
-    free() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-        wasm.__wbg_ndarr_free(ptr);
-    }
-    /**
-    */
-    static make(arg0) {
-        const retptr = globalArgumentPtr();
-        try {
-            wasm.ndarr_make(retptr, addBorrowedObject(arg0));
-            const mem = getUint32Memory();
-            const ptr = mem[retptr / 4];
-            const len = mem[retptr / 4 + 1];
-            const realRet = getStringFromWasm(ptr, len).slice();
-            wasm.__wbindgen_free(ptr, len * 1);
-            return realRet;
-            
-            
-        } finally {
-            stack.pop();
-            
-        }
-        
-    }
-    /**
-    */
-    show() {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        const retptr = globalArgumentPtr();
-        wasm.ndarr_show(retptr, this.ptr);
-        const mem = getUint32Memory();
-        const ptr = mem[retptr / 4];
-        const len = mem[retptr / 4 + 1];
-        const realRet = getStringFromWasm(ptr, len).slice();
-        wasm.__wbindgen_free(ptr, len * 1);
-        return realRet;
-        
-    }
-    /**
-    */
-    fill_f32(arg0) {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        return wasm.ndarr_fill_f32(this.ptr, arg0);
-    }
-}
 
 class ConstructorToken {
     constructor(ptr) {
@@ -1355,11 +1293,12 @@ export class Nd {
     /**
     */
     static from_arg(arg0) {
+        const [ptr0, len0] = passStringToWasm(arg0);
         try {
-            return Nd.__construct(wasm.nd_from_arg(addBorrowedObject(arg0)));
+            return Nd.__construct(wasm.nd_from_arg(ptr0, len0));
             
         } finally {
-            stack.pop();
+            wasm.__wbindgen_free(ptr0, len0 * 1);
             
         }
         
@@ -1423,6 +1362,68 @@ export class Nd {
         wasm.__wbindgen_free(ptr, len * 1);
         return realRet;
         
+    }
+}
+/**
+*/
+export class NdArr {
+    
+    static __construct(ptr) {
+        return new NdArr(ptr);
+    }
+    
+    constructor(ptr) {
+        this.ptr = ptr;
+    }
+    
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+        wasm.__wbg_ndarr_free(ptr);
+    }
+    /**
+    */
+    static make(arg0) {
+        const retptr = globalArgumentPtr();
+        try {
+            wasm.ndarr_make(retptr, addBorrowedObject(arg0));
+            const mem = getUint32Memory();
+            const ptr = mem[retptr / 4];
+            const len = mem[retptr / 4 + 1];
+            const realRet = getStringFromWasm(ptr, len).slice();
+            wasm.__wbindgen_free(ptr, len * 1);
+            return realRet;
+            
+            
+        } finally {
+            stack.pop();
+            
+        }
+        
+    }
+    /**
+    */
+    show() {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        const retptr = globalArgumentPtr();
+        wasm.ndarr_show(retptr, this.ptr);
+        const mem = getUint32Memory();
+        const ptr = mem[retptr / 4];
+        const len = mem[retptr / 4 + 1];
+        const realRet = getStringFromWasm(ptr, len).slice();
+        wasm.__wbindgen_free(ptr, len * 1);
+        return realRet;
+        
+    }
+    /**
+    */
+    fill_f32(arg0) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        return wasm.ndarr_fill_f32(this.ptr, arg0);
     }
 }
 

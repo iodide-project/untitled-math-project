@@ -24,8 +24,11 @@ pub struct Nd {
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
-    pub fn from_arg(arr_arg: &js::Array) -> Nd {
-        let real_arr_arg = format!("[{}]", String::from(arr_arg.to_string())); // the surrounding [] are cut off in to_string()
+    pub fn from_arg(arr_arg: &str) -> Nd {
+        //pub fn from_arg(arr_arg: &js::Array) -> String {
+        // grr! the to_string turns it into a flat array...
+        //let real_arr_arg = format!("[{}]", String::from(arr_arg.to_string())); // the surrounding [] are cut off in to_string()
+        let real_arr_arg = arr_arg; // the surrounding [] are cut off in to_string()
         let (dimensions, numbers) = parse(&real_arr_arg);
         let ixdyn = IxDyn(&dimensions);
         let arr = Array::from_shape_vec(ixdyn, numbers).unwrap().into_dyn();

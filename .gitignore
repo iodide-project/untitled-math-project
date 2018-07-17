@@ -1,5 +1,6 @@
 /js_code/node_modules
 **/*.wasm
+**/*.d.ts
 /target
 **/*.rs.bk
 *pdf

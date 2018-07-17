@@ -37,9 +37,9 @@ ndarray.then(module => {
     console.log(`broadcast result of elementwise_multiplying \n${a3.show()} and \n${a4.show()} is \n${a3.op("*",a4).show()}`)
 
     //testing the conversion from arguments into arrays
-    let arg1 = module.Nd.from_arg([1,2,3])
+    let arg1 = module.Nd.from_arg('[1,2,3]')
     console.log(arg1.show());
-    let arg2 = module.Nd.from_arg([[1,2,3],[4,5,6]])
+    let arg2 = module.Nd.from_arg('[[1,2,3],[4,5,6]]')
     console.log(arg2.show());
 }
 )
