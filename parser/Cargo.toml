@@ -1,0 +1,6 @@
+[package]
+name = "parser"
+version = "0.1.0"
+authors = ["Your Name <baylyd@email.arizona.edu>"]
+
+[dependencies]

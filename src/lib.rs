@@ -3,7 +3,10 @@
 // !! one issue is I'm running into difficulty in describing the types that will come out after the
 // !! fact
 extern crate ndarray;
+extern crate parser;
 extern crate wasm_bindgen;
+
+use parser::parse;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::js;
@@ -21,6 +24,13 @@ pub struct Nd {
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
+    pub fn from_arg(arr_arg: &js::Array) -> Nd {
+        let real_arr_arg = format!("[{}]", String::from(arr_arg.to_string())); // the surrounding [] are cut off in to_string()
+        let (dimensions, numbers) = parse(&real_arr_arg);
+        let ixdyn = IxDyn(&dimensions);
+        let arr = Array::from_shape_vec(ixdyn, numbers).unwrap().into_dyn();
+        Nd { array: arr }
+    }
     #[wasm_bindgen(constructor)]
     pub fn make(arr_arg: &js::Array) -> Nd {
         // simple test

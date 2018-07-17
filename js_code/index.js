@@ -4,15 +4,15 @@
 const ndarray = import("./rust_sci_test")
 
 ndarray.then(module => {
-    let ar2 = new module.NdArray([0,1])
+    let ar2 = new module.Nd([0,1])
     console.log(ar2.show())
-    let ar3 = new module.NdArray([0,6,3])
+    let ar3 = new module.Nd([0,6,3])
     console.log(ar3.show())
-    console.log(new module.NdArray([0,6]).show())
+    console.log(new module.Nd([0,6]).show())
     let creationTimer = (arr) => {
         console.log(`timing input: ${arr}`)
         let t1 = performance.now()
-        new module.NdArray(arr)
+        new module.Nd(arr)
         let t2 = performance.now()
         console.log(`time took is ${t2-t1} in ms`)
     }
@@ -25,16 +25,22 @@ ndarray.then(module => {
     for (test_arr of test_arrays) {
         creationTimer(test_arr)
     }
-    let a1 =new module.NdArray( [Math.random(),5,5])
-    let a2 =new module.NdArray( [Math.random(),5,5])
+    let a1 =new module.Nd( [Math.random(),5,5])
+    let a2 =new module.Nd( [Math.random(),5,5])
     console.log(`adding \n ${a1.show()} \nplus  ${a2.show()} \n= ${a1.add(a2).show() }`)
     console.log(`subtracting \n ${a1.show()} \nminus  ${a2.show()} \n= ${a1.op("-",a2).show() }`)
     console.log(`multiplying \n ${a1.show()} \ndot prod(mtxmult)  ${a2.show()} \n= ${a1.op("*",a2).show() }`)
-    let a3 = new module.NdArray([Math.random(),2,3])
-    let a4 = new module.NdArray([5,1,3])
+    let a3 = new module.Nd([Math.random(),2,3])
+    let a4 = new module.Nd([5,1,3])
     console.log(`broadcast result of adding \n${a4.show()} to \n${a3.show()} is \n${a3.op("+",a4).show()}`)
     console.log(`broadcast result of subtracting \n${a4.show()} from \n${a3.show()} is \n${a3.op("-",a4).show()}`)
     console.log(`broadcast result of elementwise_multiplying \n${a3.show()} and \n${a4.show()} is \n${a3.op("*",a4).show()}`)
+
+    //testing the conversion from arguments into arrays
+    let arg1 = module.Nd.from_arg([1,2,3])
+    console.log(arg1.show());
+    let arg2 = module.Nd.from_arg([[1,2,3],[4,5,6]])
+    console.log(arg2.show());
 }
 )
 

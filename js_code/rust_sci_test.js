@@ -1261,96 +1261,6 @@ const __wbg_f_valueOf_value_of_String_target = String.prototype.valueOf;
 export function __wbg_f_valueOf_value_of_String(arg0) {
     return addHeapObject(__wbg_f_valueOf_value_of_String_target.call(getObject(arg0)));
 }
-
-class ConstructorToken {
-    constructor(ptr) {
-        this.ptr = ptr;
-    }
-}
-/**
-*/
-export class Nd {
-    
-    static __construct(ptr) {
-        return new Nd(new ConstructorToken(ptr));
-    }
-    
-    constructor(...args) {
-        if (args.length === 1 && args[0] instanceof ConstructorToken) {
-            this.ptr = args[0].ptr;
-            return;
-        }
-        
-        // This invocation of new will call this constructor with a ConstructorToken
-        let instance = Nd.make(...args);
-        this.ptr = instance.ptr;
-    }
-    free() {
-        const ptr = this.ptr;
-        this.ptr = 0;
-        wasm.__wbg_nd_free(ptr);
-    }
-    /**
-    */
-    static make(arg0) {
-        try {
-            return Nd.__construct(wasm.nd_make(addBorrowedObject(arg0)));
-            
-        } finally {
-            stack.pop();
-            
-        }
-        
-    }
-    /**
-    */
-    add(arg0) {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        return Nd.__construct(wasm.nd_add(this.ptr, arg0.ptr));
-    }
-    /**
-    */
-    dot(arg0) {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        return Nd.__construct(wasm.nd_dot(this.ptr, arg0.ptr));
-    }
-    /**
-    */
-    op(arg0, arg1) {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        const [ptr0, len0] = passStringToWasm(arg0);
-        try {
-            return Nd.__construct(wasm.nd_op(this.ptr, ptr0, len0, arg1.ptr));
-            
-        } finally {
-            wasm.__wbindgen_free(ptr0, len0 * 1);
-            
-        }
-        
-    }
-    /**
-    */
-    show() {
-        if (this.ptr === 0) {
-            throw new Error('Attempt to use a moved value');
-        }
-        const retptr = globalArgumentPtr();
-        wasm.nd_show(retptr, this.ptr);
-        const mem = getUint32Memory();
-        const ptr = mem[retptr / 4];
-        const len = mem[retptr / 4 + 1];
-        const realRet = getStringFromWasm(ptr, len).slice();
-        wasm.__wbindgen_free(ptr, len * 1);
-        return realRet;
-        
-    }
-}
 /**
 */
 export class NdArr {
@@ -1411,6 +1321,108 @@ export class NdArr {
             throw new Error('Attempt to use a moved value');
         }
         return wasm.ndarr_fill_f32(this.ptr, arg0);
+    }
+}
+
+class ConstructorToken {
+    constructor(ptr) {
+        this.ptr = ptr;
+    }
+}
+/**
+*/
+export class Nd {
+    
+    static __construct(ptr) {
+        return new Nd(new ConstructorToken(ptr));
+    }
+    
+    constructor(...args) {
+        if (args.length === 1 && args[0] instanceof ConstructorToken) {
+            this.ptr = args[0].ptr;
+            return;
+        }
+        
+        // This invocation of new will call this constructor with a ConstructorToken
+        let instance = Nd.make(...args);
+        this.ptr = instance.ptr;
+    }
+    free() {
+        const ptr = this.ptr;
+        this.ptr = 0;
+        wasm.__wbg_nd_free(ptr);
+    }
+    /**
+    */
+    static from_arg(arg0) {
+        try {
+            return Nd.__construct(wasm.nd_from_arg(addBorrowedObject(arg0)));
+            
+        } finally {
+            stack.pop();
+            
+        }
+        
+    }
+    /**
+    */
+    static make(arg0) {
+        try {
+            return Nd.__construct(wasm.nd_make(addBorrowedObject(arg0)));
+            
+        } finally {
+            stack.pop();
+            
+        }
+        
+    }
+    /**
+    */
+    add(arg0) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        return Nd.__construct(wasm.nd_add(this.ptr, arg0.ptr));
+    }
+    /**
+    */
+    dot(arg0) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        return Nd.__construct(wasm.nd_dot(this.ptr, arg0.ptr));
+    }
+    /**
+    */
+    op(arg0, arg1) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        const [ptr0, len0] = passStringToWasm(arg0);
+        try {
+            return Nd.__construct(wasm.nd_op(this.ptr, ptr0, len0, arg1.ptr));
+            
+        } finally {
+            wasm.__wbindgen_free(ptr0, len0 * 1);
+            
+        }
+        
+    }
+    /**
+    */
+    show() {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        const retptr = globalArgumentPtr();
+        wasm.nd_show(retptr, this.ptr);
+        const mem = getUint32Memory();
+        const ptr = mem[retptr / 4];
+        const len = mem[retptr / 4 + 1];
+        const realRet = getStringFromWasm(ptr, len).slice();
+        wasm.__wbindgen_free(ptr, len * 1);
+        return realRet;
+        
     }
 }
 

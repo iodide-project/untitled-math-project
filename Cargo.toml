@@ -4,6 +4,7 @@ version = "0.1.0"
 authors = ["Your Name <baylyd@email.arizona.edu>"]
 
 [dependencies]
+parser = {path="./parser"}
 ndarray = "0.11.0"
 wasm-bindgen = {git = "https://github.com/rustwasm/wasm-bindgen"} 
 
