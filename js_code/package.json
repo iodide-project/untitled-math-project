@@ -6,5 +6,8 @@
     "webpack": "^4.0.1",
     "webpack-cli": "^2.0.10",
     "webpack-dev-server": "^3.1.0"
+  },
+  "dependencies": {
+    "ndarray": "^1.0.18"
   }
 }
