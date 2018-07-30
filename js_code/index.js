@@ -11,6 +11,20 @@ let timeIt = (fun) => {
         console.log(`time took is ${t2-t1} in ms`)
 }
 
+// borrowed from the scijs/miko expperiments repo
+function benchmark (A,B,nx,ny,nz,num_iter){
+  for(var count=0; count<num_iter; ++count) {
+    for(var i=0; i<nx; ++i) {
+      for(var j=0; j<ny; ++j) {
+        for(var k=0; k<nz; ++k) {
+          A.set([i, j, k], A.get([i, j, k]) + B.get([i, j, k]) + 0.1);
+          B.set([i, j, k],B.get([i, j, k]) - A.get([i, j, k]) * 0.5);
+        }
+      }
+    }
+  }
+}
+
 ndarray.then(module => {
     //let ar2 = new module.Nd([0,1])
     //console.log(ar2.show())
@@ -67,13 +81,19 @@ ndarray.then(module => {
     let dim3Rand = new Float32Array(total3).map(el=> Math.random())
     let dimensions3 = [512,512,4]
     console.log('us')
-    timeIt(()=> {module.Nd.from_AB(dim1Rand,dimensions1)})
-    timeIt(()=> {module.Nd.from_AB(dim2Rand,dimensions2)})
-    timeIt(()=> {module.Nd.from_AB(dim3Rand,dimensions3)})
+    timeIt(()=> {module.Nd.from_ab(dim1Rand,dimensions1)})
+    timeIt(()=> {module.Nd.from_ab(dim2Rand,dimensions2)})
+    timeIt(()=> {module.Nd.from_ab(dim3Rand,dimensions3)})
+    let A = module.Nd.from_ab(dim1Rand,dimensions1)
+    let B = module.Nd.from_ab(dim1Rand,dimensions1)
+    timeIt(()=> {benchmark(A,B,16,16,16,16)})
     console.log('them')
     timeIt(()=> {sci_nd(dim1Rand,dimensions1)})
     timeIt(()=> {sci_nd(dim2Rand,dimensions2)})
     timeIt(()=> {sci_nd(dim3Rand,dimensions3)})
+    A = sci_nd(dim1Rand,dimensions1)
+    B = sci_nd(dim1Rand,dimensions1)
+    timeIt(()=> {benchmark(A,B,16,16,16,16)})
 }
 )
 

@@ -18,6 +18,7 @@ use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
 pub struct Nd {
     array: ArrayD<f32>,
 }
+
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
@@ -31,10 +32,9 @@ impl Nd {
         let arr = Array::from_shape_vec(ixdyn, numbers).unwrap().into_dyn();
         Nd { array: arr }
     }
-    pub fn from_AB(arr: &js_sys::Float32Array, dims: &js_sys::Array) -> Nd {
+    pub fn from_ab(arr: &js_sys::Float32Array, dims: &js_sys::Array) -> Nd {
         let mut val_vec = vec![];
-        let mut dim_vec = vec![];
-        dims.for_each(&mut |x, _, _| dim_vec.push(x.as_f64().unwrap() as usize));
+        let dim_vec = make_arr_usize(dims);
         arr.for_each(&mut |x, _, _| {
             val_vec.push(x);
         });
@@ -43,6 +43,7 @@ impl Nd {
             array: Array::from_shape_vec(ixdyn, val_vec).unwrap(),
         }
     }
+
     #[wasm_bindgen(constructor)]
     pub fn make(arr_arg: &js_sys::Array) -> Nd {
         // simple test
@@ -90,7 +91,21 @@ impl Nd {
             },
         }
     }
+    pub fn get(&self, ind: &js_sys::Array) -> f32 {
+        let rust_ind = make_arr_usize(ind);
+        self.array[&rust_ind[..]]
+    }
+    pub fn set(&mut self, ind: &js_sys::Array, val: f32) {
+        let rust_ind = make_arr_usize(ind);
+        self.array[&rust_ind[..]] = val;
+    }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)
     }
+}
+
+fn make_arr_usize(arr: &js_sys::Array) -> Vec<usize> {
+    let mut dim_vec = vec![];
+    arr.for_each(&mut |x, _, _| dim_vec.push(x.as_f64().unwrap() as usize));
+    dim_vec
 }

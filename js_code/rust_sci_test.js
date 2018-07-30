@@ -199,9 +199,9 @@ export class Nd {
     * @param {any} arg1
     * @returns {Nd}
     */
-    static from_AB(arg0, arg1) {
+    static from_ab(arg0, arg1) {
         try {
-            return Nd.__construct(wasm.nd_from_AB(addBorrowedObject(arg0), addBorrowedObject(arg1)));
+            return Nd.__construct(wasm.nd_from_ab(addBorrowedObject(arg0), addBorrowedObject(arg1)));
             
         } finally {
             stack.pop();
@@ -259,6 +259,41 @@ export class Nd {
             
         } finally {
             wasm.__wbindgen_free(ptr0, len0 * 1);
+            
+        }
+        
+    }
+    /**
+    * @param {any} arg0
+    * @returns {number}
+    */
+    get(arg0) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        try {
+            return wasm.nd_get(this.ptr, addBorrowedObject(arg0));
+            
+        } finally {
+            stack.pop();
+            
+        }
+        
+    }
+    /**
+    * @param {any} arg0
+    * @param {number} arg1
+    * @returns {void}
+    */
+    set(arg0, arg1) {
+        if (this.ptr === 0) {
+            throw new Error('Attempt to use a moved value');
+        }
+        try {
+            return wasm.nd_set(this.ptr, addBorrowedObject(arg0), arg1);
+            
+        } finally {
+            stack.pop();
             
         }
         
