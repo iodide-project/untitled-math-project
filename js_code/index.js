@@ -58,11 +58,12 @@ ndarray.then(module => {
     //timeIt(()=> {makeCorrectArray([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])})
     //timeIt(()=> {makeCorrectArray([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])})
     // float32ArrayTimes
-    let dim1Rand = new Float32Array(1000).map(el=> Math.random())
+    let dim1Rand = new Float32Array(4096).map(el=> Math.random())
+    let dimensions = [16,16,16]
     console.log(dim1Rand)
     console.log(module.Nd)
-    timeIt(()=> {module.Nd.from_AB(dim1Rand)})
-    timeIt(()=> {sci_nd(dim1Rand,[1000])})
+    timeIt(()=> {module.Nd.from_AB(dim1Rand,dimensions)})
+    timeIt(()=> {sci_nd(dim1Rand,dimensions)})
 }
 )
 

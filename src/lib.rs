@@ -31,12 +31,14 @@ impl Nd {
         let arr = Array::from_shape_vec(ixdyn, numbers).unwrap().into_dyn();
         Nd { array: arr }
     }
-    pub fn from_AB(arr: &js_sys::Float32Array) -> Nd {
+    pub fn from_AB(arr: &js_sys::Float32Array, dims: &js_sys::Array) -> Nd {
         let mut val_vec = vec![];
+        let mut dim_vec = vec![];
+        dims.for_each(&mut |x, _, _| dim_vec.push(x.as_f64().unwrap() as usize));
         arr.for_each(&mut |x, _, _| {
             val_vec.push(x);
         });
-        let ixdyn = IxDyn(&[1_usize, val_vec.len()]);
+        let ixdyn = IxDyn(&dim_vec);
         Nd {
             array: Array::from_shape_vec(ixdyn, val_vec).unwrap(),
         }
@@ -92,4 +94,3 @@ impl Nd {
         format!("{:?}", self.array)
     }
 }
-
