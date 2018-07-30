@@ -6,11 +6,11 @@ authors = ["Your Name <baylyd@email.arizona.edu>"]
 [dependencies]
 parser = {path="./parser"}
 ndarray = "0.11.0"
+js-sys = {git= "https://github.com/rustwasm/wasm-bindgen"}
 
 [dependencies.wasm-bindgen]
 git = "https://github.com/rustwasm/wasm-bindgen" 
 version = "^0.2"
-features = ["serde-serialize"]
 
 [lib]
 crate-type = ["cdylib"]
