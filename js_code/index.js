@@ -2,6 +2,32 @@
 //
 const sci_nd = require("ndarray")
 
+function dimFinder(arr) {
+    function dimDisc(arr,dims) {
+        dims.push(arr.length)
+        if (Array.isArray(arr[0])) {
+          dimDisc(arr[0],dims)
+        }
+        return dims
+    }
+    return dimDisc(arr,[])
+}
+
+function flattener(arr) {
+    function f_private(arr,res,i){
+        if(i >= arr.length) {
+            return res
+        }
+      	
+        if (Array.isArray(arr[i])) {
+            f_private(arr[i],res,0)
+        } else {
+          res.push(arr[i])
+        }
+        return f_private(arr,res,i+1)
+    }
+    return f_private(arr,[],0)
+}
 
 const ndarray = import("./rust_sci_test")
 let timeIt = (fun) => {
@@ -72,6 +98,11 @@ ndarray.then(module => {
     //timeIt(()=> {makeCorrectArray([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])})
     //timeIt(()=> {makeCorrectArray([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])})
     // float32ArrayTimes
+    let ndarrayConvert = (nestedArr) => {
+        return [flattener(nestedArr),dimFinder(nestedArr)]
+    }
+    console.log('testing ndarray wrapper')
+    console.log(` ${[[20,15,30,31],[5,2,3,1]]} becomes ${ndarrayConvert([[20,15,30,31],[5,2,3,1]]) }`)
     let dim1Rand = new Float32Array(4096).map(el=> Math.random())
     let dimensions1 = [16,16,16]
     let total2 = 64**3
@@ -86,14 +117,20 @@ ndarray.then(module => {
     timeIt(()=> {module.Nd.from_ab(dim3Rand,dimensions3)})
     let A = module.Nd.from_ab(dim1Rand,dimensions1)
     let B = module.Nd.from_ab(dim1Rand,dimensions1)
-    timeIt(()=> {benchmark(A,B,16,16,16,16)})
-    console.log('them')
-    timeIt(()=> {sci_nd(dim1Rand,dimensions1)})
-    timeIt(()=> {sci_nd(dim2Rand,dimensions2)})
-    timeIt(()=> {sci_nd(dim3Rand,dimensions3)})
-    A = sci_nd(dim1Rand,dimensions1)
-    B = sci_nd(dim1Rand,dimensions1)
-    timeIt(()=> {benchmark(A,B,16,16,16,16)})
+    //timeIt(()=> {benchmark(A,B,16,16,16,16)})
+    ////A = module.Nd.from_ab(dim2Rand,dimensions2)
+    ////B = module.Nd.from_ab(dim2Rand,dimensions2)
+    ////timeIt(()=> {benchmark(A,B,64,64,64,16)})
+    //console.log('them')
+    //timeIt(()=> {sci_nd(dim1Rand,dimensions1)})
+    //timeIt(()=> {sci_nd(dim2Rand,dimensions2)})
+    //timeIt(()=> {sci_nd(dim3Rand,dimensions3)})
+    //A = sci_nd(dim1Rand,dimensions1)
+    //B = sci_nd(dim1Rand,dimensions1)
+    //timeIt(()=> {benchmark(A,B,16,16,16,16)})
+    //A = sci_nd(dim2Rand,dimensions2)
+    //B = sci_nd(dim2Rand,dimensions2)
+    //timeIt(()=> {benchmark(A,B,64,64,64,16)})
 }
 )
 
