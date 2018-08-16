@@ -2,6 +2,28 @@
 //
 const sci_nd = require("ndarray")
 
+// this function is primarily for testing the case where a user places existing data into the ndarray construction call
+function constructNestedData() {
+    maxDim = 5
+    dimension = Math.floor(Math.random()*maxDim)
+    maxEls = 10
+    elInEach = []
+    for (d of Array(dimension)){
+      elInEach.push(Math.floor(Math.random()*maxEls+1))
+    }
+    function nest(dimArr){
+      if(dimArr.length==0){
+        return Math.floor(Math.random()*10)
+      }
+      let innerCollect=[]
+      for (i of Array(dimArr[0])) {
+        innerCollect.push(nest(dimArr.slice(1,dimArr.length)))
+      }
+      return innerCollect
+    }
+    return nest(elInEach)
+}
+
 function dimFinder(arr) {
     function dimDisc(arr,dims) {
         dims.push(arr.length)
@@ -99,10 +121,13 @@ ndarray.then(module => {
     //timeIt(()=> {makeCorrectArray([[[1,2,3],[4,5,6]],[[1,2,3],[4,5,6]]])})
     // float32ArrayTimes
     let ndarrayConvert = (nestedArr) => {
-        return [flattener(nestedArr),dimFinder(nestedArr)]
+        return [new Float32Array(flattener(nestedArr)),dimFinder(nestedArr)]
     }
     console.log('testing ndarray wrapper')
-    console.log(` ${[[20,15,30,31],[5,2,3,1]]} becomes ${ndarrayConvert([[20,15,30,31],[5,2,3,1]]) }`)
+    let testArr = constructNestedData()
+    console.log(`nested data is ${testArr}`)
+    let unwrapped= module.Nd.from_ab(...ndarrayConvert(testArr))
+    console.log(unwrapped.show())
     let dim1Rand = new Float32Array(4096).map(el=> Math.random())
     let dimensions1 = [16,16,16]
     let total2 = 64**3
