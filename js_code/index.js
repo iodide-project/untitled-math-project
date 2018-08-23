@@ -2,6 +2,18 @@
 //
 const sci_nd = require("ndarray")
 
+// needs to be associated with the array objects somehow
+function get_slice() {
+    // construct this as a means of passing only one argument to the wasm module method 
+    //module.Nd.perform_slice(arguments.map(el => el))
+    let argArray =[]
+    for (el of arguments) {
+        argArray.push(el)
+    }
+    // will rewrite this
+    argArray[0].get_slice(argArray.slice(1,argArray.length))
+}
+
 // this function is primarily for testing the case where a user places existing data into the ndarray construction call
 function constructNestedData() {
     maxDim = 5

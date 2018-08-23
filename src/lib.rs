@@ -8,6 +8,7 @@ extern crate wasm_bindgen;
 use parser::parse;
 use wasm_bindgen::prelude::*;
 use ndarray::prelude::*;
+use ndarray::SliceOrIndex;
 use ndarray::Array;
 use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
 
@@ -89,6 +90,45 @@ impl Nd {
                 "*" => _temp_self * _broad_temp_other,
                 _ => panic!(),
             },
+        }
+    }
+    pub fn get_slice(&self, ind: &js_sys::Array) -> Self {
+        //
+        let mut val_vec: Vec<SliceOrIndex> = vec![];
+        ind.for_each(&mut |x, _, _| {
+            if let Some(num) = x.as_f64() {
+                val_vec.push(SliceOrIndex::Index(num as isize));
+            }
+            if js_sys::Array.is_array(x) {
+                // iterate over sub array
+                let sub_vec = vec![];
+                x.for_each(&mut |y, _, _| sub_vec.push(y as isize));
+                // sub_vec can only be one of three lengths
+                match sub_vec.len() {
+                    1 => val_vec.push(SliceOrIndex::Index(sub_vec[0])), // this should elicit some message about just using indices
+                    2 => val_vec.push(SliceOrIndex::Slice {
+                        start: sub_vec[0],
+                        end: Some(sub_vec[1]),
+                        step: 1_isize,
+                    }),
+                    3 => val_vec.push(SliceOrIndex::Slice {
+                        start: sub_vec[0],
+                        end: Some(sub_vec[1]),
+                        step: sub_vec[2],
+                    }),
+                }
+            }
+            // should have val_vec created by this point
+            // !! slicing creates an array view, which might not be accepted for ND creation
+            //      if so, look up how to create new ndarray from view
+        });
+        let arr_version = val_vec.as_slice();
+        let nd_slice_ob = match ndarray::SliceInfo::new(*arr_version) {
+            Ok(res) => res,
+            Err => panic!(),
+        };
+        Nd {
+            array: self.array.slice(&nd_slice_ob).to_owned(),
         }
     }
     pub fn get(&self, ind: &js_sys::Array) -> f32 {
