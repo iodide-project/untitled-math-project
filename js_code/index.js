@@ -2,17 +2,21 @@
 //
 const sci_nd = require("ndarray")
 
-// needs to be associated with the array objects somehow
-function get_slice() {
-    // construct this as a means of passing only one argument to the wasm module method 
-    //module.Nd.perform_slice(arguments.map(el => el))
-    let argArray =[]
-    for (el of arguments) {
-        argArray.push(el)
-    }
-    // will rewrite this
-    argArray[0].get_slice(argArray.slice(1,argArray.length))
+function get_slice(arr,indArr) {
+    let slice_argument = arr.reduce((acc,cur)=> {
+        if (Array.isArray(cur)) {
+            if (cur.length==2) {
+                acc+=`${cur[0]}:${cur[1]}`
+            }
+        } else {
+            acc+= `${cur}`
+        }
+        return acc 
+    },"")
+    return arr.get_slice_rust(slice_argument)
 }
+
+
 
 // this function is primarily for testing the case where a user places existing data into the ndarray construction call
 function constructNestedData() {
@@ -154,6 +158,12 @@ ndarray.then(module => {
     timeIt(()=> {module.Nd.from_ab(dim3Rand,dimensions3)})
     let A = module.Nd.from_ab(dim1Rand,dimensions1)
     let B = module.Nd.from_ab(dim1Rand,dimensions1)
+    console.log(A.show())
+    // wtf with too much recur
+    //option one
+    console.log(A.get_slice('1:,:2,2:').show())
+    //option two
+    console.log(get_slice(A,[5,5,5]).show())
     //timeIt(()=> {benchmark(A,B,16,16,16,16)})
     ////A = module.Nd.from_ab(dim2Rand,dimensions2)
     ////B = module.Nd.from_ab(dim2Rand,dimensions2)
