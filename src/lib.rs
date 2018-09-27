@@ -20,6 +20,13 @@ pub struct Nd {
     array: ArrayD<f32>,
 }
 
+//setting the consolelog for faster debugging
+#[wasm_bindgen]
+extern "C" {
+    #[wasm_bindgen(js_namespace = console)]
+    fn log(s:&str);
+}
+
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
@@ -92,43 +99,59 @@ impl Nd {
             },
         }
     }
-    pub fn get_slice(&self, ind: &js_sys::Array) -> Self {
-        //
+    pub fn get_slice_rust(&self, ind: JsValue) -> Self {
+        //ind is a string which will contain the unpackable indexing structure
+        //create a vector kind of thing from it, and rework following for iterating over the comma
+        //separated entries
+        let ind_string = ind.as_string().unwrap();
+        let ind_vector = ind_string.split(',').collect::<Vec<&str>>();
+        log(&format!("{:?}", ind_vector)[..]);
         let mut val_vec: Vec<SliceOrIndex> = vec![];
-        ind.for_each(&mut |x, _, _| {
-            if let Some(num) = x.as_f64() {
+        for ind_str in ind_vector.iter() {
+            // single integer index specified
+            if let Ok(num) = ind_str.parse::<u32>() {
                 val_vec.push(SliceOrIndex::Index(num as isize));
-            }
-            if js_sys::Array.is_array(x) {
-                // iterate over sub array
-                let sub_vec = vec![];
-                x.for_each(&mut |y, _, _| sub_vec.push(y as isize));
-                // sub_vec can only be one of three lengths
-                match sub_vec.len() {
-                    1 => val_vec.push(SliceOrIndex::Index(sub_vec[0])), // this should elicit some message about just using indices
-                    2 => val_vec.push(SliceOrIndex::Slice {
-                        start: sub_vec[0],
-                        end: Some(sub_vec[1]),
-                        step: 1_isize,
-                    }),
-                    3 => val_vec.push(SliceOrIndex::Slice {
-                        start: sub_vec[0],
-                        end: Some(sub_vec[1]),
-                        step: sub_vec[2],
-                    }),
+            } else {
+                log(&format!("{} not counted for single ind", ind_str)[..]);
+                // maybe extend this to the 2:5:1 syntax for indexing
+                let pair = ind_str
+                    .split(':')
+                    .map(|e| e.parse::<u32>())
+                    .collect::<Vec<Result<u32, std::num::ParseIntError>>>();
+                //make into slice for destructuring matching
+                match pair.as_slice() {
+                    [Ok(num), _] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num as isize,
+                            end: None,
+                            step: 1_isize,
+                        });
+                    }
+                    [Ok(num1), Ok(num2)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num1 as isize,
+                            end: Some(*num2 as isize),
+                            step: 1_isize,
+                        });
+                    }
+                    [_, Ok(num)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: 0_isize,
+                            end: Some(*num as isize),
+                            step: 1_isize,
+                        });
+                    }
+                    _ => panic!(),
                 }
             }
-            // should have val_vec created by this point
-            // !! slicing creates an array view, which might not be accepted for ND creation
-            //      if so, look up how to create new ndarray from view
-        });
-        let arr_version = val_vec.as_slice();
-        let nd_slice_ob = match ndarray::SliceInfo::new(*arr_version) {
-            Ok(res) => res,
-            Err => panic!(),
-        };
+        }
+        log(&format!("{:?}", val_vec)[..]);
+        // should have val_vec created by this point
+        // !! slicing creates an array view, which might not be accepted for ND creation
+        //      if so, look up how to create new ndarray from view
+        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(val_vec).unwrap();
         Nd {
-            array: self.array.slice(&nd_slice_ob).to_owned(),
+            array: self.array.slice(nd_slice_ob.as_ref()).to_owned(),
         }
     }
     pub fn get(&self, ind: &js_sys::Array) -> f32 {
