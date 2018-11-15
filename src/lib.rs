@@ -8,10 +8,17 @@ extern crate js_sys;
 extern crate ndarray;
 extern crate rand;
 extern crate ndarray_rand;
+// better error handling
+extern crate console_error_panic_hook;
+use std::panic;
 
 
+#[macro_use]
+extern crate failure_derive;
+extern crate failure;
 
 
+use failure::Error;
 use ndarray::prelude::*;
 use ndarray::SliceOrIndex;
 use ndarray::Array;
@@ -54,8 +61,13 @@ fn ret_f32(v:JsValue) -> f32{
 //todo change the ndarr to nd style
 #[wasm_bindgen]
 impl Nd {
-    // creation methods 
+    // this is for the panic hook
+    pub fn init() {
+        panic::set_hook(Box::new(console_error_panic_hook::hook));
+    }
+    // this gets called each time so that we can handle creation errors
 
+    // creation methods 
     pub fn from_array_buffer(arr: &[f32], dims: &js_sys::Array) -> Nd {
         let dim_vec = make_arr_usize(dims);
         let ixdyn = IxDyn(&dim_vec);
