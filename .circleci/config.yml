@@ -1,0 +1,47 @@
+version: 2
+
+defaults: &defaults
+  working_directory: ~/repo
+  docker:
+      - image: rustlang/rust:nightly
+
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+
+      - run:
+          name: lint
+          command: |
+            cargo fmt --check
+      - run:
+          name: dependencies
+          command: |
+            cargo +nightly install wasm-bindgen-cli
+            rustup target add wasm32-unknown-unknown --toolchain nightly
+
+      - run:
+          name: build
+          command: |
+            cargo +nightly build --lib --target wasm32-unknown-unknown
+            wasm-bindgen target/wasm32-unknown-unknown/debug/rust_sci_test.wasm \
+                                --out-dir js_code/
+      - run:
+          name: check-size
+          command: ls -lh js_code/
+
+      - run:
+          name: test
+          command: |
+            cargo test
+
+      - store_artifacts:
+          path: /home/circleci/repo/js_code
+
+
+workflows:
+  version: 2
+  build-and-deploy:
+    jobs:
+      - build
