@@ -6,6 +6,7 @@ use wasm_bindgen::prelude::*;
 extern crate js_sys;
 #[macro_use(array)]
 extern crate ndarray;
+extern crate nalgebra;
 extern crate rand;
 extern crate ndarray_rand;
 // better error handling
@@ -27,6 +28,7 @@ use rand::{thread_rng,Rng};
 use rand::distributions::{Uniform,Distribution};
 use ndarray_rand::RandomExt;
 
+use nalgebra::{DMatrix};
 
 mod utils;
 
@@ -66,6 +68,22 @@ impl Nd {
         panic::set_hook(Box::new(console_error_panic_hook::hook));
     }
     // this gets called each time so that we can handle creation errors
+
+    pub fn svd(&self) -> Nd {
+        let count = self.array.shape();
+        // convert to nalgebra type
+        //let shape = self.array.shape();
+        //println!("{:?} {:?}",shape[0],shape[1]);
+        let inside = self.array.view().to_owned().into_raw_vec();
+        let nalg_arr = DMatrix::from_iterator(count[0],count[1],inside);
+        //let res = SVD::new(nalg_arr,true,true);
+        //let lu = nalg_arr.svd(true,true);
+        let nalgebra::SVD {u,v_t:vt,singular_values} = nalg_arr.svd(true,true);
+        let svd_vt_data = vt.unwrap().data;
+        Nd{
+            array:Array::from_shape_vec([1,svd_vt_data.len()],svd_vt_data.to_vec()).unwrap().into_dyn()
+        }
+    }
 
     // creation methods 
     pub fn from_array_buffer(arr: &[f32], dims: &js_sys::Array) -> Nd {
