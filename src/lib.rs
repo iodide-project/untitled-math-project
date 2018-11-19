@@ -5,6 +5,7 @@ use wasm_bindgen::prelude::*;
 
 extern crate js_sys;
 #[macro_use(array)]
+#[macro_use(stack)]
 extern crate ndarray;
 extern crate nalgebra;
 extern crate rand;
@@ -23,7 +24,7 @@ use failure::Error;
 use ndarray::prelude::*;
 use ndarray::SliceOrIndex;
 use ndarray::Array;
-use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
+use ndarray::{stack,Axis,ArrayD, Dim, Ix, Ix2, IxDyn};
 use rand::{thread_rng,Rng};
 use rand::distributions::{Uniform,Distribution};
 use ndarray_rand::RandomExt;
@@ -174,7 +175,9 @@ impl Nd {
     //            array:a.into_dyn()
     //        }
     //    }
+
     // operator section
+    //  -note these functions are functional and don't modify their arguments
     pub fn add(&self, other: &Nd) -> Nd {
         let _temp_self = self.array.clone();
         let _temp_other = other.array.clone();
@@ -182,7 +185,13 @@ impl Nd {
             array: _temp_self + _temp_other,
         }
     }
+    pub fn subtract(&self,other:&Nd) -> Nd {
+        Nd{
+            array: self.array.clone() - other.array.clone(),
+        }
+    }
     pub fn dot(&self, other: &Nd) -> Nd {
+        // !! double check that this dot works with non 2d matrices
         let _temp_self = self.array.clone();
         let _temp_other = other.array.clone();
         let _temp_self_dottable = _temp_self.into_dimensionality::<Ix2>().unwrap();
@@ -191,20 +200,62 @@ impl Nd {
             array: _temp_self_dottable.dot(&_temp_other_dottable).into_dyn(),
         }
     }
-    pub fn op(&self, operator: &str, other: &Nd) -> Nd {
-        let _temp_self = self.array.clone();
-        let _temp_other = other.array.clone();
-        // broadcast default to other broadcasting
-        let _broad_temp_other = _temp_other.broadcast(_temp_self.dim()).unwrap();
-        Nd {
-            array: match operator.trim() {
-                "+" => _temp_self + _broad_temp_other,
-                "-" => _temp_self - _broad_temp_other,
-                "*" => _temp_self * _broad_temp_other,
-                _ => panic!(),
-            },
+    //not finished implementing
+    //pub fn exp(& self,n :JsValue) -> Nd {
+    //    let n = js_sys::Number::new(&n).value_of() as usize;
+    //    let mut lhs = self.array.clone();
+    //    for _ in 0..n {
+    //        lhs = lhs.dot(self.array);
+    //    }
+    //    Nd{
+    //        array:lhs
+    //    }
+
+    //}
+    // this is the element wise power, not matrix exponentiation
+    pub fn e_pow(&self,n: JsValue) -> Nd {
+        // use the map in place on ndarray
+        let n = js_sys::Number::new(&n).value_of() as i32;
+        // !!  look into the inplace version, this seems like it might be too slow
+        let powered = self.array.mapv(|a| a.powi(n));
+        Nd{
+            array: powered
         }
     }
+    pub fn sqrt(&mut self) -> Nd {
+        Nd {
+            array:self.array.mapv(f32::sqrt)
+        }
+    }
+    
+    //manipulation code
+    // numpy and other sci comp packages inplace transpose mutation
+    pub fn transpose(&mut self){
+        let trans = self.array.t().to_owned(); // !! beware of the jturner to_owned issue, only remove this comment when layout specs of to_owned are understood
+        self.array = trans;
+    }
+    pub fn concat_cols(&self,other:&Nd) -> Nd {
+        Nd{
+            array:stack![Axis(1),self.array,other.array]
+        }
+    }
+    pub fn concat_rows(&self,other:&Nd) -> Nd {
+        Nd{
+            array:stack![Axis(0),self.array,other.array]
+        }
+    }
+
+    //pub fn concatenate(&self,&other:Nd,axis:JsValue) -> Nd {
+    //    let axis_uint = js_sys::Number::new(&n).value_of() as usize;
+    //    let arr_ref = &[self.array.view(),other.array.view()];
+    //    //Nd {
+    //    //    array:stack(Axis(axis_uint),&[self.array.view(),other.array.view()]).unwrap()
+    //    //}
+    //    Nd{
+    //        array:self.array.clone()
+    //    }
+    //}
+
     pub fn get_slice_rust(&self, ind: JsValue) -> Self {
         //ind is a string which will contain the unpackable indexing structure
         //create a vector kind of thing from it, and rework following for iterating over the comma
@@ -267,6 +318,35 @@ impl Nd {
     pub fn set(&mut self, ind: &js_sys::Array, val: f32) {
         let rust_ind = make_arr_usize(ind);
         self.array[&rust_ind[..]] = val;
+    }
+    // summary information  methods
+    //
+    pub fn total_mean(&self) -> f32{
+        self.array.scalar_sum()/self.array.len() as f32
+    }
+    pub fn cols_mean(&self) -> Nd{
+        Nd {
+            array:self.array.mean_axis(Axis(1))
+        }
+    }
+    pub fn rows_mean(&self) -> Nd{
+        Nd {
+            array:self.array.mean_axis(Axis(0))
+        }
+    }
+    pub fn total_sum(&self) -> f32{
+        self.array.scalar_sum()
+    }
+    // collapses the particular axis by summing the elements in it
+    pub fn cols_sum(&self) -> Nd{
+        Nd {
+            array:self.array.sum_axis(Axis(1))
+        }
+    }
+    pub fn rows_sum(&self) -> Nd{
+        Nd {
+            array:self.array.sum_axis(Axis(0))
+        }
     }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)
