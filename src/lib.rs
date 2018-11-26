@@ -185,6 +185,11 @@ impl Nd {
             array: _temp_self + _temp_other,
         }
     }
+    pub fn mult(&self,other:&Nd) -> Nd {
+        Nd{
+            array:self.array.clone() * other.array.clone(), // elementwise mult with broadcast support
+        }
+    }
     pub fn subtract(&self,other:&Nd) -> Nd {
         Nd{
             array: self.array.clone() - other.array.clone(),
@@ -230,9 +235,11 @@ impl Nd {
     
     //manipulation code
     // numpy and other sci comp packages inplace transpose mutation
-    pub fn transpose(&mut self){
-        let trans = self.array.t().to_owned(); // !! beware of the jturner to_owned issue, only remove this comment when layout specs of to_owned are understood
-        self.array = trans;
+    //
+    pub fn transpose(&mut self) -> Nd{
+        Nd{
+            array:self.array.t().to_owned() // !! beware of the jturner to_owned issue, only remove this comment when layout specs of to_owned are understood
+        }
     }
     pub fn concat_cols(&self,other:&Nd) -> Nd {
         Nd{
@@ -329,6 +336,12 @@ impl Nd {
             array:self.array.mean_axis(Axis(1))
         }
     }
+    pub fn greater_than(&self,n: JsValue) -> Nd {
+        let n = ret_f32(n);
+        Nd {
+            array: self.array.mapv(|a| (a > n) as i32 as f32)
+        }
+    }
     pub fn rows_mean(&self) -> Nd{
         Nd {
             array:self.array.mean_axis(Axis(0))
@@ -347,6 +360,10 @@ impl Nd {
         Nd {
             array:self.array.sum_axis(Axis(0))
         }
+    }
+    // exporting options
+    pub fn export(&self) -> Box<[f32]>{
+        self.array.clone().into_raw_vec().into_boxed_slice()
     }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)
