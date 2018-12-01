@@ -29,7 +29,7 @@ use rand::{thread_rng,Rng};
 use rand::distributions::{Uniform,Distribution};
 use ndarray_rand::RandomExt;
 
-use nalgebra::{DMatrix};
+use nalgebra::{DMatrix,DVector};
 
 mod utils;
 
@@ -65,26 +65,61 @@ fn ret_f32(v:JsValue) -> f32{
 #[wasm_bindgen]
 impl Nd {
     // this is for the panic hook
+    // this gets called each time so that we can handle creation errors
     pub fn init() {
         panic::set_hook(Box::new(console_error_panic_hook::hook));
     }
-    // this gets called each time so that we can handle creation errors
 
-    pub fn svd(&self) -> Nd {
-        let count = self.array.shape();
-        // convert to nalgebra type
-        //let shape = self.array.shape();
-        //println!("{:?} {:?}",shape[0],shape[1]);
-        let inside = self.array.view().to_owned().into_raw_vec();
-        let nalg_arr = DMatrix::from_iterator(count[0],count[1],inside);
-        //let res = SVD::new(nalg_arr,true,true);
-        //let lu = nalg_arr.svd(true,true);
-        let nalgebra::SVD {u,v_t:vt,singular_values} = nalg_arr.svd(true,true);
-        let svd_vt_data = vt.unwrap().data;
-        Nd{
-            array:Array::from_shape_vec([1,svd_vt_data.len()],svd_vt_data.to_vec()).unwrap().into_dyn()
+    // solver material
+    fn into_nalg_mat(&self) -> DMatrix {
+        let inside = self.array.t().iter().cloned();// jturner suggestion
+        let nalg_arr = DMatrix::from_iterator(self.array.rows(),self.arary.cols(),inside);
+        nalg_arr
+    }
+    //fn into_nalg_vec(&self) -> DVector{
+    //    let contents = self.array.t().iter().cloned();
+    //    let nalg_vec = DVector::from_iterator(self.cols(),contents);
+    //    nalg_vec
+    //}
+
+
+    //pub fn solve(&self,other:&Nd) -> Nd{ 
+    //    let dmat = self.into_nalg_mat();
+    //    let vec
+    //    // get the LU decomp then run solve
+    //    let lu = dmat.lu();
+    //    let 
+    //}
+    pub fn values_center(&self,row_inds:&Nd,col_inds:&Nd,threshold:JsValue) -> Nd{
+        let long_array = Array::from_shape_vec((200*200,4),self.array.iter().cloned().collect()).unwrap();
+        let collapse = array![[1.0,1.0,1.0,0.0]].reversed_axes();
+        let res = long_array.dot(&collapse);
+        // I wonder which is faster, performing sum to drop axis, or reshape?
+        let threshold = ret_f32(threshold);
+        let bool_mask = res.mapv(|e| (e >threshold) as i32 as f32).sum_axis(Axis(1));
+        let total = bool_mask.scalar_sum();
+        ////create row and column arrays
+        let non_zero_columns = &col_inds.array*&bool_mask;
+        let col_center = (&col_inds.array*&bool_mask).scalar_sum()/total;
+        let row_center = (&row_inds.array*&bool_mask).scalar_sum()/total;
+        Nd {
+            array: Array::from_shape_vec((1,2),vec![col_center as f32,row_center as f32]).unwrap().into_dyn()
         }
     }
+    //pub fn svd(&self) -> Nd {
+    //    // convert to nalgebra type
+    //    //let shape = self.array.shape();
+    //    //println!("{:?} {:?}",shape[0],shape[1]);
+    //    let inside = self.array.t().iter().cloned();// jturner suggestion
+    //    let nalg_arr = DMatrix::from_iterator(self.array.rows(),self.arary.cols(),inside);
+    //    //let res = SVD::new(nalg_arr,true,true);
+    //    //let lu = nalg_arr.svd(true,true);
+    //    let nalgebra::SVD {u,v_t:vt,singular_values} = nalg_arr.svd(true,true);
+    //    let svd_vt_data = vt.unwrap().data;
+    //    Nd{
+    //        array:Array::from_shape_vec([1,svd_vt_data.len()],svd_vt_data.to_vec()).unwrap().into_dyn()
+    //    }
+    //}
 
     // creation methods 
     pub fn from_array_buffer(arr: &[f32], dims: &js_sys::Array) -> Nd {
@@ -179,30 +214,28 @@ impl Nd {
     // operator section
     //  -note these functions are functional and don't modify their arguments
     pub fn add(&self, other: &Nd) -> Nd {
-        let _temp_self = self.array.clone();
-        let _temp_other = other.array.clone();
         Nd {
-            array: _temp_self + _temp_other,
+            array: &self.array + &other.array,
         }
     }
     pub fn mult(&self,other:&Nd) -> Nd {
         Nd{
-            array:self.array.clone() * other.array.clone(), // elementwise mult with broadcast support
+            array:&self.array* &other.array, // elementwise mult with broadcast support
         }
     }
     pub fn subtract(&self,other:&Nd) -> Nd {
         Nd{
-            array: self.array.clone() - other.array.clone(),
+            array: &self.array- &other.array,
         }
     }
     pub fn dot(&self, other: &Nd) -> Nd {
         // !! double check that this dot works with non 2d matrices
-        let _temp_self = self.array.clone();
-        let _temp_other = other.array.clone();
-        let _temp_self_dottable = _temp_self.into_dimensionality::<Ix2>().unwrap();
-        let _temp_other_dottable = _temp_other.into_dimensionality::<Ix2>().unwrap();
+        let self_clone = self.array.clone();
+        let other_clone = other.array.clone();
+        let self_ix2 = self_clone.into_dimensionality::<Ix2>().unwrap();
+        let other_ix2 = other_clone.into_dimensionality::<Ix2>().unwrap();
         Nd {
-            array: _temp_self_dottable.dot(&_temp_other_dottable).into_dyn(),
+            array: self_ix2.dot(&other_ix2).into_dyn(),
         }
     }
     //not finished implementing
