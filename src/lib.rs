@@ -1,4 +1,4 @@
-// next step is to try to figure out how to get the wasm module into an iodide session
+
 extern crate cfg_if; // this is the line which lest us enable things like wee aloc and console err panic hook
 extern crate wasm_bindgen;
 use wasm_bindgen::prelude::*;
@@ -71,11 +71,33 @@ impl Nd {
     }
 
     // solver material
-    fn into_nalg_mat(&self) -> DMatrix {
-        let inside = self.array.t().iter().cloned();// jturner suggestion
-        let nalg_arr = DMatrix::from_iterator(self.array.rows(),self.arary.cols(),inside);
+    fn into_nalg_mat(&self)-> DMatrix<f32> {
+        let shape = self.array.shape();
+        let inside = self.array.t().into_iter().cloned();
+        let nalg_arr = DMatrix::from_iterator(shape[1],shape[0],inside);
         nalg_arr
     }
+
+    pub fn inverse(&self) -> Nd{
+        let shape = self.array.shape();
+        let nalg_v = self.into_nalg_mat();
+        log(&format!("{}",nalg_v));
+        let inv = nalg_v.qr().try_inverse().unwrap();
+        let ixdyn = IxDyn(&shape);
+        log(&format!("{}",inv));
+        Nd {
+            array:Array::from_shape_vec(ixdyn,inv.as_slice().to_vec()).unwrap().reversed_axes()
+        }
+
+    }
+
+    //fn into_nalg_mat(&self) -> DMatrix {
+    //    //let inside = self.array.t().iter().cloned();// jturner suggestion
+    //    //let dimensions = self.array.shape();
+    //    //let nalg_arr = DMatrix::from_iterator(1,1,&[1]);
+    //    let nalg_arr = DMatrix::<f32>::new_random(5,5);
+    //    nalg_arr
+    //}
     //fn into_nalg_vec(&self) -> DVector{
     //    let contents = self.array.t().iter().cloned();
     //    let nalg_vec = DVector::from_iterator(self.cols(),contents);
@@ -192,24 +214,16 @@ impl Nd {
         Nd { array: temp_arr }
     }
 
-    // would like to integrate random, but that is also a new crate to bring in
-    //pub fn random(dims: &js_sys::Array,range:&js_sys::Array) -> Nd {
-    //    let dim_vec = make_arr_usize(dims);
-    //    // !! investigatewhy the second for each is nec
-    //    log(&format!("{:?}",dim_vec));
-    //    let ixdyn = IxDyn(&dim_vec);
-    //    log(&format!("{:?}",ixdyn));
-    //    let range_vec = make_arr_f32(range);
-    //    log(&format!("{:?}",range_vec));
-    //    //let range_ob = Uniform::new(range_vec[0] as i32,range_vec[1]as i32);
-    //    let range_ob = Uniform::from(0..100);
-    //    log(&format!("{:?}",range_ob));
-    //    let a =  Array::random(ixdyn,range_ob) ;
-    //    log(&format!("{:?}",a));
-    //        Nd {
-    //            array:a.into_dyn()
-    //        }
+    ////no sources of entropy error in browser
+    //pub fn random(dims: &js_sys::Array) -> Nd {
+    //    let dims = make_arr_usize(dims);
+    //    let nalg_rand = DMatrix::<f32>::new_random(dims[0],dims[1]);
+    //    let raw_data= nalg_rand.as_slice();
+    //    let ixdyn = IxDyn(&dims);
+    //    Nd {
+    //        array:Array::from_shape_vec(ixdyn,raw_data.to_vec()).unwrap().into_dyn()
     //    }
+    //}
 
     // operator section
     //  -note these functions are functional and don't modify their arguments
@@ -296,57 +310,21 @@ impl Nd {
     //    }
     //}
 
-    pub fn get_slice_rust(&self, ind: JsValue) -> Self {
+    pub fn set_slice(&mut self,ind:JsValue,other:&Nd) {
+        let slice_vec = make_slice_from_string(&ind);
+        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(slice_vec).unwrap();
+        self.array.slice_mut(nd_slice_ob.as_ref()).assign(&other.array)
+    }
+
+    pub fn new_from_slice(&self, ind: JsValue) -> Self {
         //ind is a string which will contain the unpackable indexing structure
         //create a vector kind of thing from it, and rework following for iterating over the comma
         //separated entries
-        let ind_string = ind.as_string().unwrap();
-        let ind_vector = ind_string.split(',').collect::<Vec<&str>>();
-        log(&format!("{:?}", ind_vector)[..]);
-        let mut val_vec: Vec<SliceOrIndex> = vec![];
-        for ind_str in ind_vector.iter() {
-            // single integer index specified
-            if let Ok(num) = ind_str.parse::<u32>() {
-                val_vec.push(SliceOrIndex::Index(num as isize));
-            } else {
-                // maybe extend this to the 2:5:1 syntax for indexing
-                let pair = ind_str
-                    .split(':')
-                    .map(|e| e.parse::<u32>())
-                    .collect::<Vec<Result<u32, std::num::ParseIntError>>>();
-                //make into slice for destructuring matching
-                match pair.as_slice() {
-                    //num: syntax
-                    [Ok(num), _] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: *num as isize,
-                            end: None,
-                            step: 1_isize,
-                        });
-                    }//num:num syntax
-                    [Ok(num1), Ok(num2)] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: *num1 as isize,
-                            end: Some(*num2 as isize),
-                            step: 1_isize,
-                        });
-                    }// :num syntax
-                    [_, Ok(num)] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: 0_isize,
-                            end: Some(*num as isize),
-                            step: 1_isize,
-                        });
-                    }
-                    _ => panic!(),
-                }
-            }
-        }
-        log(&format!("{:?}", val_vec)[..]);
         // should have val_vec created by this point
         // !! slicing creates an array view, which might not be accepted for ND creation
         //      if so, look up how to create new ndarray from view
-        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(val_vec).unwrap();
+        let slice_vec = make_slice_from_string(&ind);
+        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(slice_vec).unwrap();
         Nd {
             array: self.array.slice(nd_slice_ob.as_ref()).to_owned(),
         }
@@ -398,6 +376,10 @@ impl Nd {
     pub fn export(&self) -> Box<[f32]>{
         self.array.clone().into_raw_vec().into_boxed_slice()
     }
+    pub fn show_pretty(&self) -> String {
+        let nalg_arr = self.into_nalg_mat();
+        format!("{}",nalg_arr)
+    }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)
     }
@@ -415,6 +397,51 @@ fn make_arr_f64(arr:&js_sys::Array)-> Vec<f64> {
     v
 }
 
+fn make_slice_from_string(ind:&JsValue) -> Vec<SliceOrIndex>{
+        let ind_string = ind.as_string().unwrap();
+        let ind_vector = ind_string.split(',').collect::<Vec<&str>>();
+        log(&format!("{:?}", ind_vector)[..]);
+        let mut val_vec: Vec<SliceOrIndex> = vec![];
+        for ind_str in ind_vector.iter() {
+            // single integer index specified
+            if let Ok(num) = ind_str.parse::<u32>() {
+                val_vec.push(SliceOrIndex::Index(num as isize));
+            } else {
+                // maybe extend this to the 2:5:1 syntax for indexing
+                let pair = ind_str
+                    .split(':')
+                    .map(|e| e.parse::<u32>())
+                    .collect::<Vec<Result<u32, std::num::ParseIntError>>>();
+                //make into slice for destructuring matching
+                match pair.as_slice() {
+                    //num: syntax
+                    [Ok(num1), Ok(num2)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num1 as isize,
+                            end: Some(*num2 as isize),
+                            step: 1_isize,
+                        });
+                    }// :num syntax
+                    [Ok(num), _] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num as isize,
+                            end: None,
+                            step: 1_isize,
+                        });
+                    }//num:num syntax
+                    [_, Ok(num)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: 0_isize,
+                            end: Some(*num as isize),
+                            step: 1_isize,
+                        });
+                    }
+                    _ => panic!(),
+                }
+            }
+        }
+        val_vec
+}
 fn make_arr_usize(arr: &js_sys::Array) -> Vec<usize> {
     let mut dim_vec = vec![];
     arr.for_each(&mut |x, _, _| dim_vec.push(x.as_f64().unwrap() as usize));
