@@ -15,7 +15,7 @@ jobs:
           name: lint
           command: |
             rustup component add rustfmt-preview
-            cargo fmt --check
+            cargo fmt -- --check
       - run:
           name: dependencies
           command: |
