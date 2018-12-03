@@ -5,12 +5,12 @@ extern crate ndarray;
 extern crate parser;
 extern crate wasm_bindgen;
 
+use ndarray::prelude::*;
+use ndarray::Array;
+use ndarray::SliceOrIndex;
+use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
 use parser::parse;
 use wasm_bindgen::prelude::*;
-use ndarray::prelude::*;
-use ndarray::SliceOrIndex;
-use ndarray::Array;
-use ndarray::{ArrayD, Dim, Ix, Ix2, IxDyn};
 
 // need to be able to say the return type of  some of these functions is a certain dimension type
 // ?? should I use an enum for thedim type?
@@ -24,7 +24,7 @@ pub struct Nd {
 #[wasm_bindgen]
 extern "C" {
     #[wasm_bindgen(js_namespace = console)]
-    fn log(s:&str);
+    fn log(s: &str);
 }
 
 //todo change the ndarr to nd style
