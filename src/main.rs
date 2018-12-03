@@ -2,7 +2,7 @@
 extern crate ndarray;
 extern crate wasm_bindgen;
 use ndarray::prelude::*;
-use ndarray::{Array, ArrayD, Dim, Ix, IxDyn, arr2};
+use ndarray::{arr2, Array, ArrayD, Dim, Ix, IxDyn};
 
 // many similarities
 // differences are
