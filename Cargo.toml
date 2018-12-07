@@ -1,6 +1,6 @@
 [package]
 name = "wasm-ndarray"
-version = "0.1.8"
+version = "0.1.11"
 authors = ["Your Name "]
 
 [lib]
