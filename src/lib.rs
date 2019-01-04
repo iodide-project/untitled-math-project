@@ -1,25 +1,19 @@
-// next step is to try to figure out how to get the wasm module into an iodide session
+
 extern crate cfg_if; // this is the line which lest us enable things like wee aloc and console err panic hook
 extern crate wasm_bindgen;
-use wasm_bindgen::prelude::*;
-
 extern crate js_sys;
 #[macro_use(array)]
 #[macro_use(stack)]
 extern crate ndarray;
 extern crate nalgebra;
 extern crate rand;
-extern crate ndarray_rand;
 // better error handling
 extern crate console_error_panic_hook;
-use std::panic;
-
-
 #[macro_use]
 extern crate failure_derive;
 extern crate failure;
-
-
+use wasm_bindgen::prelude::*;
+use std::panic;
 use failure::Error;
 use ndarray::prelude::*;
 use ndarray::SliceOrIndex;
@@ -27,10 +21,7 @@ use ndarray::Array;
 use ndarray::{stack,Axis,ArrayD, Dim, Ix, Ix2, IxDyn};
 use rand::{thread_rng,Rng};
 use rand::distributions::{Uniform,Distribution};
-use ndarray_rand::RandomExt;
-
-use nalgebra::{DMatrix};
-
+use nalgebra::{DMatrix,DVector};
 mod utils;
 
 
@@ -65,22 +56,143 @@ fn ret_f32(v:JsValue) -> f32{
 #[wasm_bindgen]
 impl Nd {
     // this is for the panic hook
+    // this gets called each time so that we can handle creation errors
     pub fn init() {
         panic::set_hook(Box::new(console_error_panic_hook::hook));
     }
-    // this gets called each time so that we can handle creation errors
 
+    // solver material
+    fn into_nalg_mat(&self)-> DMatrix<f32> {
+        let shape = self.array.shape();
+        let inside = self.array.t().into_iter().cloned();
+        let nalg_arr = DMatrix::from_iterator(shape[0],shape[1],inside);
+        nalg_arr
+    }
+
+
+    pub fn inverse(&self) -> Nd{
+        let shape = self.array.shape();
+        let nalg_v = self.into_nalg_mat();
+        log(&format!("{}",nalg_v));
+        let inv = nalg_v.qr().try_inverse().unwrap();
+        let ixdyn = IxDyn(&shape);
+        log(&format!("{}",inv));
+        Nd {
+            array:Array::from_shape_vec(ixdyn,inv.as_slice().to_vec()).unwrap().reversed_axes() // double check whether we need to reverse after all now
+        }
+
+    }
+
+    //fn into_nalg_mat(&self) -> DMatrix {
+    //    //let inside = self.array.t().iter().cloned();// jturner suggestion
+    //    //let dimensions = self.array.shape();
+    //    //let nalg_arr = DMatrix::from_iterator(1,1,&[1]);
+    //    let nalg_arr = DMatrix::<f32>::new_random(5,5);
+    //    nalg_arr
+    //}
+    fn into_nalg_vec(&self) -> DVector<f32> {
+        let shape = self.array.shape();
+        let inside = self.array.t().into_iter().cloned();
+        let nalg_vec = DVector::from_iterator(shape[0],inside);
+        nalg_vec
+    }
+
+    pub fn one_dim_pretty(&self) -> String {
+        let nvec = self.into_nalg_vec();
+        format!("{}",nvec)
+    }
+
+
+    pub fn solve(&self,other:&Nd) -> Nd{ 
+        let dmat = self.into_nalg_mat();
+        let vec = other.into_nalg_vec();
+        // get the LU decomp then run solve
+        let lu = dmat.lu();
+        log(&format!("{}",lu.solve(&vec).unwrap()));
+        let solution = lu.solve(&vec).unwrap();
+        // pretty sure we can count on the shape only being 2d here
+        let shape = solution.shape();
+        let ixdyn = IxDyn(&[shape.0,shape.1]); 
+        Nd {
+            // be careful that the as slice returns in the col or row order that is correct for Nd
+            // recreation, perhaps the reversed_axes si all that we need towrite here
+            array:Array::from_shape_vec(ixdyn,solution.as_slice().to_vec()).unwrap().reversed_axes()
+        }
+
+    }
+    pub fn instructive_filter(&self,row_inds:&Nd,col_inds:&Nd,channelSelect:js_sys::Array,threshold:JsValue) -> Box<[f32]> {
+        let long_array = Array::from_shape_vec((200*200,4),self.array.iter().cloned().collect()).unwrap();
+        let channelSelect = make_arr_f32(&channelSelect);
+        let collapse = Array::from_shape_vec((4,1),channelSelect).unwrap();
+        let res = long_array.dot(&collapse);
+        // I wonder which is faster, performing sum to drop axis, or reshape?
+        let threshold = ret_f32(threshold);
+        let mut retv = vec![];
+        let bool_mask = res.mapv(|e| {if e > threshold {retv.extend(vec![255.0,255.0,255.0,255.0]);return 1.0} else {retv.extend(vec![0.0,0.0,0.0,255.0]);return 0.0}});
+        retv.into_boxed_slice()
+    }
+
+
+    pub fn values_center(&self,row_inds:&Nd,col_inds:&Nd,channelSelect:js_sys::Array,threshold:JsValue) -> Nd{
+        let long_array = Array::from_shape_vec((200*200,4),self.array.iter().cloned().collect()).unwrap();
+        let channelSelect = make_arr_f32(&channelSelect);
+        let collapse = Array::from_shape_vec((4,1),channelSelect).unwrap();
+        let res = long_array.dot(&collapse);
+        // I wonder which is faster, performing sum to drop axis, or reshape?
+        let threshold = ret_f32(threshold);
+        let bool_mask = res.mapv(|e| (e >threshold) as i32 as f32).sum_axis(Axis(1));
+        let total = bool_mask.scalar_sum();
+        ////create row and column arrays
+        let non_zero_columns = &col_inds.array*&bool_mask;
+        let col_center = (&col_inds.array*&bool_mask).scalar_sum()/total;
+        let row_center = (&row_inds.array*&bool_mask).scalar_sum()/total;
+        Nd {
+            array: Array::from_shape_vec((1,2),vec![col_center as f32,row_center as f32]).unwrap().into_dyn()
+        }
+    }
+
+    //fn nalg_to_ndarray(m:&DMatrix) -> Nd{
+    //    unimplemented!();
+    //    Nd{
+    //        array:Array::from_shape_vec(m.shape(),m.as_slice().to_vec()).unwrap().into_dyn()
+    //    }
+    //}
+    
+
+    //pub fn qr(&self) -> js_sys::Array  {
+    //    unimplemented!();
+    //    let nalg = self.into_nalg_mat();
+    //    let qr = nalg.qr();
+    //    let jsarr = js_sys::Array::new();
+    //    let ndq = Nd::nalg_to_ndarray(qr.q());
+    //    let ndr = Nd::nalg_to_ndarray(qr.r());
+
+    //    jsarr.push(ndq);
+    //    jsarr.push(ndr);
+    //}
+
+
+    pub fn lsqr(&self,other:&Nd) -> Nd{
+        // find the y for the minimum x, and subtract that from the entire y vector, introduce as
+        // the 
+        let X = self.into_nalg_mat();
+        let Y = other.into_nalg_mat();
+        let qr = X.qr();
+        let q = qr.q();
+        let r = qr.r();
+        let solution = r.try_inverse().unwrap()*q.transpose()*Y;
+        let shape = solution.shape();
+        Nd{ 
+            array:Array::from_shape_vec(shape,solution.as_slice().to_vec()).unwrap().into_dyn()
+        }
+
+    }
     pub fn svd(&self) -> Nd {
-        let count = self.array.shape();
-        // convert to nalgebra type
-        //let shape = self.array.shape();
-        //println!("{:?} {:?}",shape[0],shape[1]);
-        let inside = self.array.view().to_owned().into_raw_vec();
-        let nalg_arr = DMatrix::from_iterator(count[0],count[1],inside);
-        //let res = SVD::new(nalg_arr,true,true);
-        //let lu = nalg_arr.svd(true,true);
+        let nalg_arr = self.into_nalg_mat();
+
         let nalgebra::SVD {u,v_t:vt,singular_values} = nalg_arr.svd(true,true);
         let svd_vt_data = vt.unwrap().data;
+
         Nd{
             array:Array::from_shape_vec([1,svd_vt_data.len()],svd_vt_data.to_vec()).unwrap().into_dyn()
         }
@@ -141,63 +253,43 @@ impl Nd {
             array: Array::zeros(ixdyn)
         }
     }
-    #[wasm_bindgen(constructor)]
-    pub fn make(arr_arg: &js_sys::Array) -> Nd {
-        // simple test
-        let str_arr = String::from(arr_arg.to_string()); //both coversions required due to the JsString used first
-        let mut vec_str: Vec<_> = str_arr.split(",").collect();
-        let filler = vec_str.remove(0).parse::<f32>().unwrap();
-        let vec_dim: Vec<usize> = vec_str
-            .into_iter()
-            .map(|x| x.parse::<usize>().unwrap())
-            .collect();
-        let mut temp_arr = ArrayD::<f32>::zeros(IxDyn(&vec_dim));
-        // todo explore whether the from_elem alt is faster than zero/fill method
-        temp_arr.fill(filler);
-        Nd { array: temp_arr }
+    //no sources of entropy error in browser
+    pub fn random(dims: &js_sys::Array) -> Nd {
+        let dims = make_arr_usize(dims);
+        let raw_data = (0..dims[0]).map(|x| rand::random::<f32>()).collect::<Vec<_>>();
+        let nalg_rand = DMatrix::from_iterator(1,dims[0],raw_data.iter().cloned());
+        let raw_data= nalg_rand.as_slice();
+        let ixdyn = IxDyn(&dims);
+        Nd {
+            array:Array::from_shape_vec(ixdyn,raw_data.to_vec()).unwrap().into_dyn()
+        }
     }
-
-    // would like to integrate random, but that is also a new crate to bring in
-    //pub fn random(dims: &js_sys::Array,range:&js_sys::Array) -> Nd {
-    //    let dim_vec = make_arr_usize(dims);
-    //    // !! investigatewhy the second for each is nec
-    //    log(&format!("{:?}",dim_vec));
-    //    let ixdyn = IxDyn(&dim_vec);
-    //    log(&format!("{:?}",ixdyn));
-    //    let range_vec = make_arr_f32(range);
-    //    log(&format!("{:?}",range_vec));
-    //    //let range_ob = Uniform::new(range_vec[0] as i32,range_vec[1]as i32);
-    //    let range_ob = Uniform::from(0..100);
-    //    log(&format!("{:?}",range_ob));
-    //    let a =  Array::random(ixdyn,range_ob) ;
-    //    log(&format!("{:?}",a));
-    //        Nd {
-    //            array:a.into_dyn()
-    //        }
-    //    }
 
     // operator section
     //  -note these functions are functional and don't modify their arguments
     pub fn add(&self, other: &Nd) -> Nd {
-        let _temp_self = self.array.clone();
-        let _temp_other = other.array.clone();
         Nd {
-            array: _temp_self + _temp_other,
+            array: &self.array + &other.array,
+        }
+    }
+    pub fn mult(&self,other:&Nd) -> Nd {
+        Nd{
+            array:&self.array* &other.array, // elementwise mult with broadcast support
         }
     }
     pub fn subtract(&self,other:&Nd) -> Nd {
         Nd{
-            array: self.array.clone() - other.array.clone(),
+            array: &self.array- &other.array,
         }
     }
     pub fn dot(&self, other: &Nd) -> Nd {
         // !! double check that this dot works with non 2d matrices
-        let _temp_self = self.array.clone();
-        let _temp_other = other.array.clone();
-        let _temp_self_dottable = _temp_self.into_dimensionality::<Ix2>().unwrap();
-        let _temp_other_dottable = _temp_other.into_dimensionality::<Ix2>().unwrap();
+        let self_clone = self.array.clone();
+        let other_clone = other.array.clone();
+        let self_ix2 = self_clone.into_dimensionality::<Ix2>().unwrap();
+        let other_ix2 = other_clone.into_dimensionality::<Ix2>().unwrap();
         Nd {
-            array: _temp_self_dottable.dot(&_temp_other_dottable).into_dyn(),
+            array: self_ix2.dot(&other_ix2).into_dyn(),
         }
     }
     //not finished implementing
@@ -230,9 +322,11 @@ impl Nd {
     
     //manipulation code
     // numpy and other sci comp packages inplace transpose mutation
-    pub fn transpose(&mut self){
-        let trans = self.array.t().to_owned(); // !! beware of the jturner to_owned issue, only remove this comment when layout specs of to_owned are understood
-        self.array = trans;
+    //
+    pub fn transpose(&mut self) -> Nd{
+        Nd{
+            array:self.array.t().to_owned() // !! beware of the jturner to_owned issue, only remove this comment when layout specs of to_owned are understood
+        }
     }
     pub fn concat_cols(&self,other:&Nd) -> Nd {
         Nd{
@@ -256,68 +350,39 @@ impl Nd {
     //    }
     //}
 
-    pub fn get_slice_rust(&self, ind: JsValue) -> Self {
+    pub fn set_slice(&mut self,ind:JsValue,other:&Nd) {
+        let slice_vec = make_slice_from_string(&ind);
+        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(slice_vec).unwrap();
+        self.array.slice_mut(nd_slice_ob.as_ref()).assign(&other.array)
+    }
+
+    pub fn new_from_slice(&self, ind: JsValue) -> Self {
         //ind is a string which will contain the unpackable indexing structure
         //create a vector kind of thing from it, and rework following for iterating over the comma
         //separated entries
-        let ind_string = ind.as_string().unwrap();
-        let ind_vector = ind_string.split(',').collect::<Vec<&str>>();
-        log(&format!("{:?}", ind_vector)[..]);
-        let mut val_vec: Vec<SliceOrIndex> = vec![];
-        for ind_str in ind_vector.iter() {
-            // single integer index specified
-            if let Ok(num) = ind_str.parse::<u32>() {
-                val_vec.push(SliceOrIndex::Index(num as isize));
-            } else {
-                // maybe extend this to the 2:5:1 syntax for indexing
-                let pair = ind_str
-                    .split(':')
-                    .map(|e| e.parse::<u32>())
-                    .collect::<Vec<Result<u32, std::num::ParseIntError>>>();
-                //make into slice for destructuring matching
-                match pair.as_slice() {
-                    //num: syntax
-                    [Ok(num), _] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: *num as isize,
-                            end: None,
-                            step: 1_isize,
-                        });
-                    }//num:num syntax
-                    [Ok(num1), Ok(num2)] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: *num1 as isize,
-                            end: Some(*num2 as isize),
-                            step: 1_isize,
-                        });
-                    }// :num syntax
-                    [_, Ok(num)] => {
-                        val_vec.push(SliceOrIndex::Slice {
-                            start: 0_isize,
-                            end: Some(*num as isize),
-                            step: 1_isize,
-                        });
-                    }
-                    _ => panic!(),
-                }
-            }
-        }
-        log(&format!("{:?}", val_vec)[..]);
         // should have val_vec created by this point
         // !! slicing creates an array view, which might not be accepted for ND creation
         //      if so, look up how to create new ndarray from view
-        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(val_vec).unwrap();
+        let slice_vec = make_slice_from_string(&ind);
+        let nd_slice_ob = ndarray::SliceInfo::<_, IxDyn>::new(slice_vec).unwrap();
         Nd {
             array: self.array.slice(nd_slice_ob.as_ref()).to_owned(),
         }
     }
-    pub fn get(&self, ind: &js_sys::Array) -> f32 {
-        let rust_ind = make_arr_usize(ind);
-        self.array[&rust_ind[..]]
+    // !!! note u32 might not be large enough for certain architectures
+    pub fn run_bench_op(size:usize)  {
+    let mut A: Array<f32,Dim<[Ix;1]>> = Array::zeros(size);
+    let mut B: Array<f32,Dim<[Ix;1]>> = Array::zeros(size);
+    for i in 0..size {
+        A[i] += B[i] + 1.0;
+        B[i] -= A[i] * 5.0;
     }
-    pub fn set(&mut self, ind: &js_sys::Array, val: f32) {
-        let rust_ind = make_arr_usize(ind);
-        self.array[&rust_ind[..]] = val;
+    }
+    pub fn get(&self, ind:usize) -> f32 {
+        self.array[ind]
+    }
+    pub fn set(&mut self, ind:usize, val: f32) {
+        self.array[ind] = val;
     }
     // summary information  methods
     //
@@ -327,6 +392,12 @@ impl Nd {
     pub fn cols_mean(&self) -> Nd{
         Nd {
             array:self.array.mean_axis(Axis(1))
+        }
+    }
+    pub fn greater_than(&self,n: JsValue) -> Nd {
+        let n = ret_f32(n);
+        Nd {
+            array: self.array.mapv(|a| (a > n) as i32 as f32)
         }
     }
     pub fn rows_mean(&self) -> Nd{
@@ -348,6 +419,14 @@ impl Nd {
             array:self.array.sum_axis(Axis(0))
         }
     }
+    // exporting options
+    pub fn export(&self) -> Box<[f32]>{
+        self.array.clone().into_raw_vec().into_boxed_slice()
+    }
+    pub fn show_pretty(&self) -> String {
+        let nalg_arr = self.into_nalg_mat();
+        format!("{}",nalg_arr)
+    }
     pub fn show(&self) -> String {
         format!("{:?}", self.array)
     }
@@ -365,6 +444,51 @@ fn make_arr_f64(arr:&js_sys::Array)-> Vec<f64> {
     v
 }
 
+fn make_slice_from_string(ind:&JsValue) -> Vec<SliceOrIndex>{
+        let ind_string = ind.as_string().unwrap();
+        let ind_vector = ind_string.split(',').collect::<Vec<&str>>();
+        //log(&format!("{:?}", ind_vector)[..]);
+        let mut val_vec: Vec<SliceOrIndex> = vec![];
+        for ind_str in ind_vector.iter() {
+            // single integer index specified
+            if let Ok(num) = ind_str.parse::<u32>() {
+                val_vec.push(SliceOrIndex::Index(num as isize));
+            } else {
+                // maybe extend this to the 2:5:1 syntax for indexing
+                let pair = ind_str
+                    .split(':')
+                    .map(|e| e.parse::<u32>())
+                    .collect::<Vec<Result<u32, std::num::ParseIntError>>>();
+                //make into slice for destructuring matching
+                match pair.as_slice() {
+                    //num: syntax
+                    [Ok(num1), Ok(num2)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num1 as isize,
+                            end: Some(*num2 as isize),
+                            step: 1_isize,
+                        });
+                    }// :num syntax
+                    [Ok(num), _] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: *num as isize,
+                            end: None,
+                            step: 1_isize,
+                        });
+                    }//num:num syntax
+                    [_, Ok(num)] => {
+                        val_vec.push(SliceOrIndex::Slice {
+                            start: 0_isize,
+                            end: Some(*num as isize),
+                            step: 1_isize,
+                        });
+                    }
+                    _ => panic!(),
+                }
+            }
+        }
+        val_vec
+}
 fn make_arr_usize(arr: &js_sys::Array) -> Vec<usize> {
     let mut dim_vec = vec![];
     arr.for_each(&mut |x, _, _| dim_vec.push(x.as_f64().unwrap() as usize));
