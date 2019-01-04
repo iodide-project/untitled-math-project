@@ -1,25 +1,19 @@
 
 extern crate cfg_if; // this is the line which lest us enable things like wee aloc and console err panic hook
 extern crate wasm_bindgen;
-use wasm_bindgen::prelude::*;
-
 extern crate js_sys;
 #[macro_use(array)]
 #[macro_use(stack)]
 extern crate ndarray;
 extern crate nalgebra;
 extern crate rand;
-extern crate ndarray_rand;
 // better error handling
 extern crate console_error_panic_hook;
-use std::panic;
-
-
 #[macro_use]
 extern crate failure_derive;
 extern crate failure;
-
-
+use wasm_bindgen::prelude::*;
+use std::panic;
 use failure::Error;
 use ndarray::prelude::*;
 use ndarray::SliceOrIndex;
@@ -27,10 +21,7 @@ use ndarray::Array;
 use ndarray::{stack,Axis,ArrayD, Dim, Ix, Ix2, IxDyn};
 use rand::{thread_rng,Rng};
 use rand::distributions::{Uniform,Distribution};
-use ndarray_rand::RandomExt;
-
 use nalgebra::{DMatrix,DVector};
-
 mod utils;
 
 
@@ -129,9 +120,23 @@ impl Nd {
         }
 
     }
-    pub fn values_center(&self,row_inds:&Nd,col_inds:&Nd,threshold:JsValue) -> Nd{
+    pub fn instructive_filter(&self,row_inds:&Nd,col_inds:&Nd,channelSelect:js_sys::Array,threshold:JsValue) -> Box<[f32]> {
         let long_array = Array::from_shape_vec((200*200,4),self.array.iter().cloned().collect()).unwrap();
-        let collapse = array![[1.0,1.0,1.0,0.0]].reversed_axes();
+        let channelSelect = make_arr_f32(&channelSelect);
+        let collapse = Array::from_shape_vec((4,1),channelSelect).unwrap();
+        let res = long_array.dot(&collapse);
+        // I wonder which is faster, performing sum to drop axis, or reshape?
+        let threshold = ret_f32(threshold);
+        let mut retv = vec![];
+        let bool_mask = res.mapv(|e| {if e > threshold {retv.extend(vec![255.0,255.0,255.0,255.0]);return 1.0} else {retv.extend(vec![0.0,0.0,0.0,255.0]);return 0.0}});
+        retv.into_boxed_slice()
+    }
+
+
+    pub fn values_center(&self,row_inds:&Nd,col_inds:&Nd,channelSelect:js_sys::Array,threshold:JsValue) -> Nd{
+        let long_array = Array::from_shape_vec((200*200,4),self.array.iter().cloned().collect()).unwrap();
+        let channelSelect = make_arr_f32(&channelSelect);
+        let collapse = Array::from_shape_vec((4,1),channelSelect).unwrap();
         let res = long_array.dot(&collapse);
         // I wonder which is faster, performing sum to drop axis, or reshape?
         let threshold = ret_f32(threshold);
@@ -146,23 +151,25 @@ impl Nd {
         }
     }
 
-    fn nalg_to_ndarray(m:&DMatrix) -> Nd{
-        Nd{
-            array:Array::from_shape_vec(m.shape(),m.as_slice().to_vec()).unwrap().into_dyn()
-        }
-    }
+    //fn nalg_to_ndarray(m:&DMatrix) -> Nd{
+    //    unimplemented!();
+    //    Nd{
+    //        array:Array::from_shape_vec(m.shape(),m.as_slice().to_vec()).unwrap().into_dyn()
+    //    }
+    //}
     
 
-    pub fn qr(&self) -> js_sys::Array  {
-        let nalg = self.into_nalg_mat();
-        let qr = nalg.qr();
-        let jsarr = js_sys::Array::new();
-        let ndq = Nd::nalg_to_ndarray(qr.q());
-        let ndr = Nd::nalg_to_ndarray(qr.r());
+    //pub fn qr(&self) -> js_sys::Array  {
+    //    unimplemented!();
+    //    let nalg = self.into_nalg_mat();
+    //    let qr = nalg.qr();
+    //    let jsarr = js_sys::Array::new();
+    //    let ndq = Nd::nalg_to_ndarray(qr.q());
+    //    let ndr = Nd::nalg_to_ndarray(qr.r());
 
-        jsarr.push(ndq);
-        jsarr.push(ndr);
-    }
+    //    jsarr.push(ndq);
+    //    jsarr.push(ndr);
+    //}
 
 
     pub fn lsqr(&self,other:&Nd) -> Nd{
@@ -246,16 +253,17 @@ impl Nd {
             array: Array::zeros(ixdyn)
         }
     }
-    ////no sources of entropy error in browser
-    //pub fn random(dims: &js_sys::Array) -> Nd {
-    //    let dims = make_arr_usize(dims);
-    //    let nalg_rand = DMatrix::<f32>::new_random(dims[0],dims[1]);
-    //    let raw_data= nalg_rand.as_slice();
-    //    let ixdyn = IxDyn(&dims);
-    //    Nd {
-    //        array:Array::from_shape_vec(ixdyn,raw_data.to_vec()).unwrap().into_dyn()
-    //    }
-    //}
+    //no sources of entropy error in browser
+    pub fn random(dims: &js_sys::Array) -> Nd {
+        let dims = make_arr_usize(dims);
+        let raw_data = (0..dims[0]).map(|x| rand::random::<f32>()).collect::<Vec<_>>();
+        let nalg_rand = DMatrix::from_iterator(1,dims[0],raw_data.iter().cloned());
+        let raw_data= nalg_rand.as_slice();
+        let ixdyn = IxDyn(&dims);
+        Nd {
+            array:Array::from_shape_vec(ixdyn,raw_data.to_vec()).unwrap().into_dyn()
+        }
+    }
 
     // operator section
     //  -note these functions are functional and don't modify their arguments
@@ -361,13 +369,20 @@ impl Nd {
             array: self.array.slice(nd_slice_ob.as_ref()).to_owned(),
         }
     }
-    pub fn get(&self, ind: &js_sys::Array) -> f32 {
-        let rust_ind = make_arr_usize(ind);
-        self.array[&rust_ind[..]]
+    // !!! note u32 might not be large enough for certain architectures
+    pub fn run_bench_op(size:usize)  {
+    let mut A: Array<f32,Dim<[Ix;1]>> = Array::zeros(size);
+    let mut B: Array<f32,Dim<[Ix;1]>> = Array::zeros(size);
+    for i in 0..size {
+        A[i] += B[i] + 1.0;
+        B[i] -= A[i] * 5.0;
     }
-    pub fn set(&mut self, ind: &js_sys::Array, val: f32) {
-        let rust_ind = make_arr_usize(ind);
-        self.array[&rust_ind[..]] = val;
+    }
+    pub fn get(&self, ind:usize) -> f32 {
+        self.array[ind]
+    }
+    pub fn set(&mut self, ind:usize, val: f32) {
+        self.array[ind] = val;
     }
     // summary information  methods
     //
